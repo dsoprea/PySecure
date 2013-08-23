@@ -104,9 +104,9 @@ c_sftp_extensions_get_name.argtypes = [c_sftp_session, c_uint]
 c_sftp_extensions_get_name.restype = c_char_p
 
 # sftp_attributes sftp_fstat (sftp_file file)
-sftp_fstat = libssh.sftp_fstat
-sftp_fstat.argtypes = [c_sftp_file]
-sftp_fstat.restype = c_sftp_attributes
+c_sftp_fstat = libssh.sftp_fstat
+c_sftp_fstat.argtypes = [c_sftp_file]
+c_sftp_fstat.restype = c_sftp_attributes
 
 # sftp_statvfs_t sftp_fstatvfs (sftp_file file)
 # c_sftp_statvfs = c_void_p
