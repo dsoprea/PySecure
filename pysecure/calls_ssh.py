@@ -70,3 +70,13 @@ c_ssh_get_error = libssh.ssh_get_error
 c_ssh_get_error.argtypes = [c_void_p]
 c_ssh_get_error.restype = c_char_p
 
+# int ssh_init(void)
+c_ssh_init = libssh.ssh_init
+c_ssh_init.argtypes = []
+c_ssh_init.restype = c_int
+
+# int ssh_finalize(void)
+c_ssh_finalize = libssh.ssh_finalize
+c_ssh_finalize.argtypes = []
+c_ssh_finalize.restype = c_int
+
