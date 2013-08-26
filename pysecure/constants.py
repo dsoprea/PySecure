@@ -48,3 +48,18 @@ SSH_ERROR = -1
 SSH_AGAIN = -2
 SSH_EOF   = -127
 
+# ssh_error_types_e
+SSH_NO_ERROR       = 0
+SSH_REQUEST_DENIED = 1
+SSH_FATAL          = 2
+SSH_EINTR          = 3
+
+# File modes.
+O_RDONLY    00000000
+O_WRONLY    00000001
+O_RDWR      00000002
+O_CREAT     00000100
+O_EXCL      00000200
+O_TRUNC     00001000
+
+

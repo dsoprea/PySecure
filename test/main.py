@@ -120,7 +120,8 @@ def verify_knownhost(session, allow_new):
 
         if state == SSH_SERVER_NOT_KNOWN:
             print("The server is unknown.")
-        
+
+# TODO: Reimplement using create_string_buffer(). It might fix our free() problem.        
         hexa = c_ssh_get_hexa(hash, hlen)
         hexa_string = cast(hexa, c_char_p)
         print("Public key hash: %s" % (hexa_string.value))
