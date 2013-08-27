@@ -26,7 +26,7 @@ def _sftp_new(ssh_session):
 def _sftp_free(sftp_session):
     c_sftp_free(sftp_session)
 
-def sftp_init(sftp_session):
+def _sftp_init(sftp_session):
     result = c_sftp_init(sftp_session)
     if result < 0:
         type_ = sftp_get_error(sftp_session)
@@ -303,6 +303,8 @@ class SftpSession(object):
 
     def __enter__(self):
         self.__sftp_session = _sftp_new(self.__ssh_session)
+        _sftp_init(self.__sftp_session)
+
         return self.__sftp_session
 
     def __exit__(self, e_type, e_value, e_tb):

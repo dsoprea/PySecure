@@ -19,7 +19,7 @@ from pysecure.adapters.ssha import ssh_options_set_string, \
                                    ssh_userauth_privatekey_file, SshSession, \
                                    SshConnect, SshSystem, PublicKeyHash
 
-from pysecure.adapters.sftpa import sftp_init, SftpSession, sftp_listdir
+from pysecure.adapters.sftpa import SftpSession, sftp_listdir
 
 user = 'dustin'
 host = 'dustinplex'
@@ -45,8 +45,6 @@ with SshSystem():
             ssh_userauth_privatekey_file(session, None, key_filepath, None)
 
             with SftpSession(session) as sftp:
-                sftp_init(sftp)
-
                 print("Name                         Size Perms    Owner\tGroup\n")
                 for attributes in sftp_listdir(sftp, '.'):
                     print("%-40s %10d %.8o %s(%d)\t%s(%d)" % 
