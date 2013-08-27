@@ -42,16 +42,16 @@ with SshSystem():
                 return would_accept
 
             ssh_is_server_known(session, cb=hostkey_gate)
-#            ssh_userauth_privatekey_file(session, None, key_filepath, None)
-#
-#            with SftpSession(session) as sftp:
-#                sftp_init(sftp)
-#
-#                print("Name                         Size Perms    Owner\tGroup\n")
-#                for attributes in sftp_listdir(sftp, '.'):
-#                    print("%-40s %10d %.8o %s(%d)\t%s(%d)" % 
-#                          (attributes.name[0:40], attributes.size, 
-#                           attributes.permissions,
-#                           attributes.owner, attributes.uid, attributes.group,
-#                           attributes.gid))
+            ssh_userauth_privatekey_file(session, None, key_filepath, None)
+
+            with SftpSession(session) as sftp:
+                sftp_init(sftp)
+
+                print("Name                         Size Perms    Owner\tGroup\n")
+                for attributes in sftp_listdir(sftp, '.'):
+                    print("%-40s %10d %.8o %s(%d)\t%s(%d)" % 
+                          (attributes.name[0:40], attributes.size, 
+                           attributes.permissions,
+                           attributes.owner, attributes.uid, attributes.group,
+                           attributes.gid))
 
