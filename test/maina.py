@@ -4,15 +4,8 @@ import logging
 
 from pysecure import log_config
 
-from sys import exit
-from ctypes import *
-
 from pysecure.constants import SSH_OPTIONS_USER, SSH_OPTIONS_HOST, \
-                               SSH_OPTIONS_LOG_VERBOSITY, \
-                               SSH_SERVER_KNOWN_OK, SSH_SERVER_KNOWN_CHANGED, \
-                               SSH_SERVER_FOUND_OTHER, \
-                               SSH_SERVER_FILE_NOT_FOUND, \
-                               SSH_SERVER_NOT_KNOWN, SSH_SERVER_ERROR
+                               SSH_OPTIONS_LOG_VERBOSITY
 
 #ssh_get_pubkey_hash, \
 #ssh_get_hexa, \
@@ -24,7 +17,7 @@ from pysecure.adapters.ssha import ssh_options_set_string, \
                                    ssh_is_server_known, \
                                    ssh_write_knownhost, \
                                    ssh_userauth_privatekey_file, SshSession, \
-                                   SshConnect, SshSystem
+                                   SshConnect, SshSystem, PublicKeyHash
 
 from pysecure.adapters.sftpa import sftp_init, SftpSession, sftp_listdir
 
@@ -42,17 +35,23 @@ with SshSystem():
         with SshConnect(session):
             logging.debug("Ready to authenticate.")
 
-            ssh_is_server_known(session, True)
-            ssh_userauth_privatekey_file(session, None, key_filepath, None)
+            def hostkey_gate(hk, would_accept):
+                logging.debug("CB HK: %s" % (hk))
+                logging.debug("CB Would Accept: %s" % (would_accept))
+                
+                return would_accept
 
-            with SftpSession(session) as sftp:
-                sftp_init(sftp)
-
-                print("Name                         Size Perms    Owner\tGroup\n")
-                for attributes in sftp_listdir(sftp, '.'):
-                    print("%-40s %10d %.8o %s(%d)\t%s(%d)" % 
-                          (attributes.name[0:40], attributes.size, 
-                           attributes.permissions,
-                           attributes.owner, attributes.uid, attributes.group,
-                           attributes.gid))
+            ssh_is_server_known(session, cb=hostkey_gate)
+#            ssh_userauth_privatekey_file(session, None, key_filepath, None)
+#
+#            with SftpSession(session) as sftp:
+#                sftp_init(sftp)
+#
+#                print("Name                         Size Perms    Owner\tGroup\n")
+#                for attributes in sftp_listdir(sftp, '.'):
+#                    print("%-40s %10d %.8o %s(%d)\t%s(%d)" % 
+#                          (attributes.name[0:40], attributes.size, 
+#                           attributes.permissions,
+#                           attributes.owner, attributes.uid, attributes.group,
+#                           attributes.gid))
 

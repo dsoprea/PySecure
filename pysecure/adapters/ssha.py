@@ -73,7 +73,7 @@ def ssh_options_set_int(ssh_session, type_, value):
         raise SshError("Could not set UINT option (%d) to (%d)." % 
                        (type_, value))
 
-def ssh_is_server_known(ssh_session, allow_new=False):
+def ssh_is_server_known(ssh_session, allow_new=False, cb=None):
     result = c_ssh_is_server_known(ssh_session)
 
     if result == SSH_SERVER_KNOWN_CHANGED:
@@ -91,6 +91,17 @@ def ssh_is_server_known(ssh_session, allow_new=False):
             raise SshHostKeyException("An existing host-key was not found. "
                                       "Our policy is to deny new hosts.")
 
+        if cb is not None:
+            hk = repr(PublicKeyHash(ssh_session))
+            allow_auth = cb(hk, False)
+            
+            logging.debug("Host-key callback returned [%s] when no host-key "
+                          "yet available." % (allow_auth))
+            
+            if allow_auth is False:
+                raise SshHostKeyException("New host-key was failed by "
+                                          "callback.")
+
         logging.warn("Recording host-key for server.")
         c_ssh_write_knownhost(ssh_session)
 
@@ -99,6 +110,17 @@ def ssh_is_server_known(ssh_session, allow_new=False):
     elif result != SSH_SERVER_KNOWN_OK:
         raise SshHostKeyException("Host key: Failed (unexpected error).")
     else:
+        if cb is not None:
+            hk = repr(PublicKeyHash(ssh_session))
+            allow_auth = cb(hk, True)
+            
+            logging.debug("Host-key callback returned [%s] when a host-key has "
+                          "already been accepted." % (allow_auth))
+
+            if allow_auth is False:
+                raise SshHostKeyException("Existing host-key was failed by "
+                                          "callback.")
+
         logging.debug("Server host-key authenticated.")
 
 def _ssh_print_hexa(title, hash_, hlen):
@@ -187,19 +209,30 @@ class SshConnect(object):
         _ssh_disconnect(self.__ssh_session)
 
 
-class PubkeyHash(object):
+class _PublicKeyHashString(object):
+    def __init__(self, hash_, hlen):
+        self.__hexa = _ssh_get_hexa(hash_, hlen)
+        
+    def __repr__(self):
+        hexa_string = cast(self.__hexa, c_char_p)
+# TODO: We do an empty concatenate just to ensure that we are making a copy.
+        return hexa_string.value + ""
+
+    def __del__(self):
+        c_free(self.__hexa)
+
+
+class PublicKeyHash(object):
     def __init__(self, ssh_session):
         self.__hasht = _ssh_get_pubkey_hash(ssh_session)
         
     def __del__(self):
         c_free(self.__hasht[0])
 
-    def repr(self):
+    def print_string(self, title="Host key"):
         _ssh_print_hexa(title, *self.__hasht)
 
-    def generate_string(self, cb):
-        hexa = _ssh_get_hexa(*self.__hasht)
-        hexa_string = cast(hexa, c_char_p)
-        cb(hexa_string.value)
-        c_free(hexa)
+    def __repr__(self):
+        pks = _PublicKeyHashString(*self.__hasht)
+        return repr(pks)
 
