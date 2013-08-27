@@ -2,20 +2,29 @@ from datetime import datetime
 from ctypes import create_string_buffer, cast
 
 from pysecure.constants import SSH_NO_ERROR
-from pysecure.calls.sftpi import sftp_get_error, c_sftp_open, c_sftp_write, \
-                                 c_sftp_tell, c_sftp_seek, c_sftp_read, \
-                                 c_sftp_fstat, c_sftp_rewind, c_sftp_close, \
-                                 c_sftp_rename, c_sftp_chmod, c_sftp_chown, \
-                                 c_sftp_mkdir, c_sftp_rmdir
+from pysecure.calls.sftpi import c_sftp_get_error, c_sftp_new, c_sftp_init, \
+                                 c_sftp_open, c_sftp_write, c_sftp_free, \
+                                 c_sftp_opendir, c_sftp_closedir, \
+                                 c_sftp_readdir, c_sftp_attributes_free, \
+                                 c_sftp_dir_eof, c_sftp_tell, c_sftp_seek, \
+                                 c_sftp_read, c_sftp_fstat, c_sftp_rewind, \
+                                 c_sftp_close, c_sftp_rename, c_sftp_chmod, \
+                                 c_sftp_chown, c_sftp_mkdir, c_sftp_rmdir
 
 from pysecure.exceptions import SftpError
 
-def sftp_new(ssh_session):
+def sftp_get_error(sftp_session):
+    return c_sftp_get_error(sftp_session)
+
+def _sftp_new(ssh_session):
     session = c_sftp_new(ssh_session)
     if session is None:
         raise SftpError("Could not create SFTP session.")
         
     return session
+
+def _sftp_free(sftp_session):
+    c_sftp_free(sftp_session)
 
 def sftp_init(sftp_session):
     result = c_sftp_init(sftp_session)
@@ -27,13 +36,7 @@ def sftp_init(sftp_session):
             raise SftpError("Could not create SFTP session. There was an "
                             "unspecified error.")
 
-def sftp_get_error(sftp_session):
-    return c_sftp_get_error(sftp_session)
-
-def sftp_free(sftp_session):
-    c_sftp_free(sftp_session)
-
-def sftp_opendir(sftp_session, path)
+def _sftp_opendir(sftp_session, path):
     sd = c_sftp_opendir(sftp_session, path)
     if sd is None:
         type_ = sftp_get_error(sftp_session)
@@ -46,25 +49,26 @@ def sftp_opendir(sftp_session, path)
 
     return sd
 
-def sftp_closedir(sd)
+def _sftp_closedir(sd):
     result = c_sftp_closedir(sd)
     if result != SSH_NO_ERROR:
         raise SftpError("Could not close directory.")
 
-def sftp_readdir(sftp_session, sd)
+def sftp_readdir(sftp_session, sd):
     attr = c_sftp_readdir(sftp_session, sd)
-    if attr is None:
-        raise SftpError("Could not read directory.")
 
-    return attr
+    if not attr:
+        return None
 
-def sftp_attributes_free(attr)
+    return EntryAttributes(attr)
+
+def _sftp_attributes_free(attr):
     c_sftp_attributes_free(attr)
 
 def sftp_dir_eof(sd):
     return (c_sftp_dir_eof(sd) == 1)
 
-def sftp_open(sftp_session, filepath, access_type, mode)
+def _sftp_open(sftp_session, filepath, access_type, mode):
     sf = c_sftp_open(sftp_session, filepath, access_type, mode)
     if sf is None:
         type_ = sftp_get_error(sftp_session)
@@ -74,6 +78,11 @@ def sftp_open(sftp_session, filepath, access_type, mode)
         else:
             raise SftpError("Could not open file [%s]. There was an "
                             "unspecified error." % (file_path))
+
+def _sftp_close(sf):
+    result = c_sftp_close(sf)
+    if result != SSH_NO_ERROR:
+        raise SftpError("Close failed with code (%d)." % (result))
 
 def sftp_write(sf, buffer_):
     buffer_raw = create_string_buffer(buffer_)
@@ -110,7 +119,7 @@ def sftp_fstat(sf):
     if attr is None:
         raise SftpError("Could not acquire attributes for FSTAT.")
 
-    return attr
+    return EntryAttributes(attr)
 
 def sftp_stat(sf, file_path):
     attr = c_sftp_fstat(sf, c_char_p(file_path))
@@ -123,7 +132,7 @@ def sftp_stat(sf, file_path):
             raise SftpError("Could not acquire attributes for STAT of [%s]. "
                             "There was an unspecified error." % (file_path))
 
-    return attr
+    return EntryAttributes(attr)
 
 #    print(attr)
 
@@ -142,11 +151,6 @@ def sftp_rewind(sf):
 #        raise Exception("Could not read current position in file.")
 #        
 #    print("Current position 3: %d" % (position))
-
-def sftp_close(sf):
-    result = c_sftp_close(sf)
-    if result != SSH_NO_ERROR:
-        raise SftpError("Close failed with code (%d)." % (result))
 
 def sftp_rename(sftp_session, filepath_old, filepath_new):
 #    filepath_new = ('%s.old' % (filepath))
@@ -226,7 +230,7 @@ def sftp_lstat(sftp_session, file_path):
             raise SftpError("LSTAT of [%s] failed. There was an unspecified "
                             "error." % (file_path))
 
-    return attr
+    return EntryAttributes(attr)
 
 def sftp_unlink(sftp_session, file_path):
     result = c_sftp_lstat(sftp_session, c_char_p(file_path))
@@ -265,8 +269,10 @@ def sftp_symlink(sftp_session, to, from_):
             raise SftpError("Symlink of [%s] to target [%s] failed. There was "
                             "an unspecified error." % (from_, to))
 
-def sftp_setstat(sftp_session, file_path, attr):
-    result = c_sftp_setstat(sftp_session, c_char_p(file_path), attr)
+def sftp_setstat(sftp_session, file_path, entry_attributes):
+    result = c_sftp_setstat(sftp_session,
+                            c_char_p(file_path),
+                            entry_attributes.raw)
 
     if result < 0:
         type_ = sftp_get_error(sftp_session)
@@ -277,6 +283,79 @@ def sftp_setstat(sftp_session, file_path, attr):
             raise SftpError("Set-stat on [%s] failed. There was an "
                             "unspecified error." % (file_path))
 
+def sftp_listdir(sftp_session, path):
+    with SftpDirectory(sftp_session, path) as sd_:
+        while 1:
+            attributes = sftp_readdir(sftp_session, sd_)
+            if attributes is None:
+                break
+
+            yield attributes
+
+        if not sftp_dir_eof(sd_):
+            raise SftpError("We're done iterating the directory, but it's not "
+                            "at EOF.")
+
+
+class SftpSession(object):
+    def __init__(self, ssh_session):
+        self.__ssh_session = ssh_session
+
+    def __enter__(self):
+        self.__sftp_session = _sftp_new(self.__ssh_session)
+        return self.__sftp_session
+
+    def __exit__(self, e_type, e_value, e_tb):
+        _sftp_free(self.__sftp_session)
+
+
+class SftpDirectory(object):
+    def __init__(self, sftp_session, path):
+        self.__sftp_session = sftp_session
+        self.__path = path
+
+    def __enter__(self):
+        self.__sd = _sftp_opendir(self.__sftp_session, self.__path)
+        return self.__sd
+
+    def __exit__(self, e_type, e_value, e_tb):
+        _sftp_closedir(self.__sd)
+
+
+class SftpFile(object):
+    def __init__(self, sftp_session, filepath, access_type, mode):
+        self.__sftp_session = sftp_session
+        self.__filepath = filepath
+        self.__access_type = access_type
+        self.__mode = mode
+
+    def __enter__(self):
+        self.__sf = _sftp_open(self.__sftp_session, 
+                               self.__filepath, 
+                               self.__access_type, 
+                               self.__mode)
+
+        return self.__sf
+
+    def __exit__(self, e_type, e_value, e_tb):
+        _sftp_close(self.__sf)
+
+
+class EntryAttributes(object):
+    """This wraps the raw attribute type, and frees it at destruction."""
+
+    def __init__(self, attr_raw):
+        self.__attr_raw = attr_raw
+
+    def __del__(self):
+        _sftp_attributes_free(self.__attr_raw)
+
+    def __getattr__(self, key):
+        return getattr(self.__attr_raw.contents, key)
+
+    @property
+    def raw(self):
+        return self.__attr_raw
 
 #c_sftp_extensions_get_count
 #c_sftp_extensions_get_name
