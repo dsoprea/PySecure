@@ -51,7 +51,6 @@ with SshSystem():
                 for attributes in sftp_listdir(sftp, '.'):
                     print("%-40s %10d %.8o %s(%d)\t%s(%d)" % 
                           (attributes.name[0:40], attributes.size, 
-                           attributes.permissions,
-                           attributes.owner, attributes.uid, attributes.group,
-                           attributes.gid))
+                           attributes.permissions, attributes.owner, 
+                           attributes.uid, attributes.group, attributes.gid))
 

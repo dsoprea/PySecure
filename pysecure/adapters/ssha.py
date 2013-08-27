@@ -188,6 +188,7 @@ class SshSystem(object):
     def __exit__(self, e_type, e_value, e_tb):
         _ssh_finalize
 
+
 class SshSession(object):
     def __enter__(self):
         self.__ssh_session = _ssh_new()
@@ -229,7 +230,7 @@ class PublicKeyHash(object):
     def __del__(self):
         c_free(self.__hasht[0])
 
-    def print_string(self, title="Host key"):
+    def print_string(self, title="Public key"):
         _ssh_print_hexa(title, *self.__hasht)
 
     def __repr__(self):
