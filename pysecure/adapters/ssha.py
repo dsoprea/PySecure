@@ -19,7 +19,7 @@ from pysecure.calls.sshi import c_free, c_ssh_userauth_privatekey_file, \
                                 c_ssh_connect, c_ssh_disconnect, \
                                 c_ssh_print_hexa, c_ssh_get_hexa, c_ssh_free, \
                                 c_ssh_new, c_ssh_options_set, c_ssh_init, \
-                                c_ssh_finalize
+                                c_ssh_finalize, c_ssh_userauth_password
 
 def _ssh_options_set_string(ssh_session, type_, value):
     value_charp = c_char_p(value)
@@ -160,15 +160,7 @@ def ssh_write_knownhost(ssh_session):
     if result == SSH_ERROR:
         raise SshError("Could not update known-hosts file.")
 
-def ssh_userauth_privatekey_file(ssh_session, username, filepath, passphrase=None):
-    logging.debug("Authenticating with a private-key for user [%s]." % 
-                  (username))
-
-    result = c_ssh_userauth_privatekey_file(ssh_session, \
-                                            c_char_p(username), \
-                                            c_char_p(filepath), \
-                                            c_char_p(passphrase))
-
+def _check_auth_response(result):
     if result == SSH_AUTH_ERROR:
         raise SshLoginError("Login failed: Auth error.")
     elif result == SSH_AUTH_DENIED:
@@ -179,6 +171,28 @@ def ssh_userauth_privatekey_file(ssh_session, username, filepath, passphrase=Non
         raise SshLoginError("Login failed: Auth again.")
     elif result != SSH_AUTH_SUCCESS:
         raise SshLoginError("Login failed (unexpected error).")
+
+def ssh_userauth_password(ssh_session, username, password):
+    logging.debug("Authenticating with a password for user [%s]." % (username))
+    
+    result = c_ssh_userauth_password(ssh_session, \
+                                     c_char_p(username), \
+                                     c_char_p(password))
+
+    _check_auth_response(result)
+
+def ssh_userauth_privatekey_file(ssh_session, username, filepath, 
+                                 passphrase=None):
+
+    logging.debug("Authenticating with a private-key for user [%s]." % 
+                  (username))
+
+    result = c_ssh_userauth_privatekey_file(ssh_session, \
+                                            c_char_p(username), \
+                                            c_char_p(filepath), \
+                                            c_char_p(passphrase))
+
+    _check_auth_response(result)
 
     logging.debug("Private-key authenticated successfully.")
 

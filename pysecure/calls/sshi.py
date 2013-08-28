@@ -65,6 +65,11 @@ c_ssh_userauth_privatekey_file = libssh.ssh_userauth_privatekey_file
 c_ssh_userauth_privatekey_file.argtypes = [c_ssh_session, c_char_p, c_char_p, c_char_p]
 c_ssh_userauth_privatekey_file.restype = c_int
 
+# int ssh_userauth_password (ssh_session session, const char *username, const char *password)
+c_ssh_userauth_password = libssh.ssh_userauth_password
+c_ssh_userauth_password.argtypes = [c_ssh_session, c_char_p, c_char_p]
+c_ssh_userauth_password.restype = c_int
+
 # LIBSSH_API const char *ssh_get_error(void *error);
 c_ssh_get_error_code = libssh.ssh_get_error_code
 c_ssh_get_error_code.argtypes = [c_void_p]
