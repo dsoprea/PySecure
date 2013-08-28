@@ -11,7 +11,7 @@ from pysecure.constants import SSH_OK, SSH_ERROR, SSH_AGAIN, SSH_AUTH_ERROR, \
                                SSH_SERVER_KNOWN_CHANGED, \
                                SSH_SERVER_FOUND_OTHER, SSH_SERVER_NOT_KNOWN, \
                                SSH_SERVER_FILE_NOT_FOUND, SSH_SERVER_ERROR, \
-                               SSH_SERVER_KNOWN_OK
+                               SSH_SERVER_KNOWN_OK, SSH_OPTIONS
 
 from pysecure.calls.sshi import c_free, c_ssh_userauth_privatekey_file, \
                                 c_ssh_get_error_code, c_ssh_write_knownhost, \
@@ -20,6 +20,47 @@ from pysecure.calls.sshi import c_free, c_ssh_userauth_privatekey_file, \
                                 c_ssh_print_hexa, c_ssh_get_hexa, c_ssh_free, \
                                 c_ssh_new, c_ssh_options_set, c_ssh_init, \
                                 c_ssh_finalize
+
+def _ssh_options_set_string(ssh_session, type_, value):
+    value_charp = c_char_p(value)
+
+    result = c_ssh_options_set(ssh_session, 
+                               c_int(type_), 
+                               cast(value_charp, c_void_p))
+
+    if result < 0:
+        raise SshError("Could not set STRING option (%d) to [%s]." % 
+                       (type_, value))
+
+def _ssh_options_set_uint(ssh_session, type_, value):
+    value_uint = c_uint(value)
+    result = c_ssh_options_set(ssh_session, 
+                               c_int(type_), 
+                               cast(byref(value_uint), c_void_p))
+
+    if result < 0:
+        raise SshError("Could not set UINT option (%d) to (%d)." % 
+                       (type_, value))
+
+def _ssh_options_set_int(ssh_session, type_, value):
+    value_int = c_int(value)
+    result = c_ssh_options_set(ssh_session, 
+                               c_int(type_), 
+                               cast(POINTER(value_int), c_void_p))
+
+    if result < 0:
+        raise SshError("Could not set INT option (%d) to (%d)." % 
+                       (type_, value))
+
+def _ssh_options_set_long(ssh_session, type_, value):
+    value_long = c_long(value)
+    result = c_ssh_options_set(ssh_session, 
+                               c_int(type_), 
+                               cast(POINTER(value_long), c_void_p))
+
+    if result < 0:
+        raise SshError("Could not set LONG option (%d) to (%d)." % 
+                       (type_, value))
 
 def ssh_get_error_code(ssh_session):
     return c_ssh_get_error_code(ssh_session)
@@ -43,35 +84,6 @@ def _ssh_connect(ssh_session):
 
 def _ssh_disconnect(ssh_session):
     c_ssh_disconnect(ssh_session)
-
-def ssh_options_set_string(ssh_session, type_, value):
-    result = c_ssh_options_set(ssh_session, 
-                               c_int(type_), 
-                               cast(value, c_char_p))
-
-    if result < 0:
-        raise SshError("Could not set STRING option (%d) to [%s]." % 
-                       (type_, value))
-
-def ssh_options_set_uint(ssh_session, type_, value):
-    value_uint = c_uint(value)
-    result = c_ssh_options_set(ssh_session, 
-                               c_int(type_), 
-                               cast(byref(value_uint), c_void_p))
-
-    if result < 0:
-        raise SshError("Could not set UINT option (%d) to (%d)." % 
-                       (type_, value))
-
-def ssh_options_set_int(ssh_session, type_, value):
-    value_int = c_int(value)
-    result = c_ssh_options_set(ssh_session, 
-                               c_int(type_), 
-                               cast(POINTER(value_int), c_void_p))
-
-    if result < 0:
-        raise SshError("Could not set UINT option (%d) to (%d)." % 
-                       (type_, value))
 
 def ssh_is_server_known(ssh_session, allow_new=False, cb=None):
     result = c_ssh_is_server_known(ssh_session)
@@ -190,8 +202,33 @@ class SshSystem(object):
 
 
 class SshSession(object):
+    def __init__(self, **options):
+        self.__options = options
+
     def __enter__(self):
         self.__ssh_session = _ssh_new()
+
+        for k, v in self.__options.items():
+            (option_id, type_) = SSH_OPTIONS[k]
+            
+            if type_ == 'string':
+                option_setter = _ssh_options_set_string
+            elif type_ == 'uint':
+                option_setter = _ssh_options_set_uint
+            elif type_ == 'int':
+                option_setter = _ssh_options_set_int
+            elif type_ == 'long':
+                option_setter = _ssh_options_set_long
+            elif type_ == 'bool':
+                v = 0 if v is False else 1
+                option_setter = _ssh_options_set_int
+            else:
+                raise SshError("Option type [%s] is invalid." % (type_))
+            
+            logging.debug("Setting option [%s] (%d) to [%s]." % 
+                          (k, option_id, v))
+
+            option_setter(self.__ssh_session, option_id, v)
 
         return self.__ssh_session
 

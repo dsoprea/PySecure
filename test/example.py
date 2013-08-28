@@ -4,17 +4,12 @@ import logging
 
 from pysecure import log_config
 
-from pysecure.constants import SSH_OPTIONS_USER, SSH_OPTIONS_HOST, \
-                               SSH_OPTIONS_LOG_VERBOSITY
-
 #ssh_get_pubkey_hash, \
 #ssh_get_hexa, \
 #free, \
 #strerror, 
 #ssh_get_error, \
-from pysecure.adapters.ssha import ssh_options_set_string, \
-                                   ssh_options_set_uint, \
-                                   ssh_is_server_known, \
+from pysecure.adapters.ssha import ssh_is_server_known, \
                                    ssh_write_knownhost, \
                                    ssh_userauth_privatekey_file, SshSession, \
                                    SshConnect, SshSystem, PublicKeyHash
@@ -27,11 +22,7 @@ key_filepath = '/home/dustin/.ssh/id_dsa'
 verbosity = 0
 
 with SshSystem():
-    with SshSession() as session:
-        ssh_options_set_string(session, SSH_OPTIONS_USER, user)
-        ssh_options_set_string(session, SSH_OPTIONS_HOST, host)
-        ssh_options_set_uint(session, SSH_OPTIONS_LOG_VERBOSITY, verbosity)
-        
+    with SshSession(user=user, host=host, verbosity=verbosity) as session:
         with SshConnect(session):
             logging.debug("Ready to authenticate.")
 

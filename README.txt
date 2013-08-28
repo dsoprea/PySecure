@@ -75,11 +75,7 @@ Getting Started
     verbosity = 1
 
     with SshSystem():
-        with SshSession() as session:
-            ssh_options_set_string(session, SSH_OPTIONS_USER, user)
-            ssh_options_set_string(session, SSH_OPTIONS_HOST, host)
-            ssh_options_set_uint(session, SSH_OPTIONS_LOG_VERBOSITY, verbosity)
-            
+        with SshSession(user=user, host=host, verbosity=verbosity) as session:
             with SshConnect(session):
                 logging.debug("Ready to authenticate.")
 
