@@ -57,12 +57,7 @@ Getting Started
 
     import logging
 
-    from pysecure.constants import SSH_OPTIONS_USER, SSH_OPTIONS_HOST, \
-                                   SSH_OPTIONS_LOG_VERBOSITY
-
-    from pysecure.adapters.ssha import ssh_options_set_string, \
-                                       ssh_options_set_uint, \
-                                       ssh_is_server_known, \
+    from pysecure.adapters.ssha import ssh_is_server_known, \
                                        ssh_write_knownhost, \
                                        ssh_userauth_privatekey_file, SshSession, \
                                        SshConnect, SshSystem, PublicKeyHash
