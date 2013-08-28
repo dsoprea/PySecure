@@ -70,10 +70,15 @@ c_ssh_userauth_password = libssh.ssh_userauth_password
 c_ssh_userauth_password.argtypes = [c_ssh_session, c_char_p, c_char_p]
 c_ssh_userauth_password.restype = c_int
 
-# LIBSSH_API const char *ssh_get_error(void *error);
+# int ssh_get_error_code (void *error)
 c_ssh_get_error_code = libssh.ssh_get_error_code
 c_ssh_get_error_code.argtypes = [c_void_p]
-c_ssh_get_error_code.restype = c_char_p
+c_ssh_get_error_code.restype = c_int
+
+# const char* ssh_get_error	(	void * 	error)		
+c_ssh_get_error = libssh.ssh_get_error
+c_ssh_get_error.argtypes = [c_void_p]
+c_ssh_get_error.restype = c_char_p
 
 # int ssh_init(void)
 c_ssh_init = libssh.ssh_init

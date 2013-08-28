@@ -5,13 +5,17 @@ from ctypes import c_char_p, c_void_p, c_ubyte, byref, POINTER, cast, c_uint, \
 
 from pysecure.exceptions import SshError, SshLoginError, SshHostKeyException, \
                                 SshNonblockingTryAgain
-from pysecure.constants import SSH_OK, SSH_ERROR, SSH_AGAIN, SSH_AUTH_ERROR, \
-                               SSH_AUTH_DENIED, SSH_AUTH_PARTIAL, \
-                               SSH_AUTH_AGAIN, SSH_AUTH_SUCCESS, \
-                               SSH_SERVER_KNOWN_CHANGED, \
-                               SSH_SERVER_FOUND_OTHER, SSH_SERVER_NOT_KNOWN, \
-                               SSH_SERVER_FILE_NOT_FOUND, SSH_SERVER_ERROR, \
-                               SSH_SERVER_KNOWN_OK, SSH_OPTIONS
+from pysecure.constants.ssh import SSH_OK, SSH_ERROR, SSH_AGAIN, \
+                                   \
+                                   SSH_AUTH_ERROR, SSH_AUTH_DENIED, \
+                                   SSH_AUTH_PARTIAL, SSH_AUTH_AGAIN, \
+                                   SSH_AUTH_SUCCESS, \
+                                   \
+                                   SSH_SERVER_ERROR, SSH_SERVER_NOT_KNOWN, \
+                                   SSH_SERVER_KNOWN_OK, \
+                                   SSH_SERVER_KNOWN_CHANGED, \
+                                   SSH_SERVER_FOUND_OTHER, SSH_OPTIONS, \
+                                   SSH_SERVER_FILE_NOT_FOUND
 
 from pysecure.calls.sshi import c_free, c_ssh_userauth_privatekey_file, \
                                 c_ssh_get_error_code, c_ssh_write_knownhost, \
@@ -19,7 +23,8 @@ from pysecure.calls.sshi import c_free, c_ssh_userauth_privatekey_file, \
                                 c_ssh_connect, c_ssh_disconnect, \
                                 c_ssh_print_hexa, c_ssh_get_hexa, c_ssh_free, \
                                 c_ssh_new, c_ssh_options_set, c_ssh_init, \
-                                c_ssh_finalize, c_ssh_userauth_password
+                                c_ssh_finalize, c_ssh_userauth_password, \
+                                c_ssh_get_error
 
 def _ssh_options_set_string(ssh_session, type_, value):
     value_charp = c_char_p(value)
@@ -64,6 +69,9 @@ def _ssh_options_set_long(ssh_session, type_, value):
 
 def ssh_get_error_code(ssh_session):
     return c_ssh_get_error_code(ssh_session)
+
+def ssh_get_error(ssh_session):
+    return c_ssh_get_error(ssh_session)
 
 def _ssh_new():
     ssh_session = c_ssh_new()

@@ -1,7 +1,8 @@
 from datetime import datetime
 from ctypes import create_string_buffer, cast
 
-from pysecure.constants import SSH_NO_ERROR
+from pysecure.constants.ssh import SSH_NO_ERROR
+from pysecure.constants import SERVER_RESPONSES
 from pysecure.calls.sftpi import c_sftp_get_error, c_sftp_new, c_sftp_init, \
                                  c_sftp_open, c_sftp_write, c_sftp_free, \
                                  c_sftp_opendir, c_sftp_closedir, \
@@ -15,6 +16,9 @@ from pysecure.exceptions import SftpError
 
 def sftp_get_error(sftp_session):
     return c_sftp_get_error(sftp_session)
+
+def sftp_get_error_string(code):
+    return ('%s [%s]' % (SERVER_RESPONSES[code][1], SERVER_RESPONSES[code][0]))
 
 def _sftp_new(ssh_session):
     session = c_sftp_new(ssh_session)
@@ -31,7 +35,8 @@ def _sftp_init(sftp_session):
     if result < 0:
         type_ = sftp_get_error(sftp_session)
         if type_ >= 0:
-            raise SftpError("Could not create SFTP session: %d" % (type_))
+            raise SftpError("Could not create SFTP session: %s" % 
+                            (sftp_get_error_string(type_)))
         else:
             raise SftpError("Could not create SFTP session. There was an "
                             "unspecified error.")
@@ -41,8 +46,8 @@ def _sftp_opendir(sftp_session, path):
     if sd is None:
         type_ = sftp_get_error(sftp_session)
         if type_ >= 0:
-            raise SftpError("Could not open directory [%s]: %d" % 
-                            (path, type_))
+            raise SftpError("Could not open directory [%s]: %s" % 
+                            (path, sftp_get_error_string(type_)))
         else:
             raise SftpError("Could not open directory [%s]. There was an "
                             "unspecified error." % (path))
@@ -54,7 +59,7 @@ def _sftp_closedir(sd):
     if result != SSH_NO_ERROR:
         raise SftpError("Could not close directory.")
 
-def sftp_readdir(sftp_session, sd):
+def _sftp_readdir(sftp_session, sd):
     attr = c_sftp_readdir(sftp_session, sd)
 
     if not attr:
@@ -65,7 +70,7 @@ def sftp_readdir(sftp_session, sd):
 def _sftp_attributes_free(attr):
     c_sftp_attributes_free(attr)
 
-def sftp_dir_eof(sd):
+def _sftp_dir_eof(sd):
     return (c_sftp_dir_eof(sd) == 1)
 
 def _sftp_open(sftp_session, filepath, access_type, mode):
@@ -73,11 +78,11 @@ def _sftp_open(sftp_session, filepath, access_type, mode):
     if sf is None:
         type_ = sftp_get_error(sftp_session)
         if type_ >= 0:
-            raise SftpError("Could not open file [%s]: %d" % 
-                            (file_path, type_))
+            raise SftpError("Could not open file [%s]: %s" % 
+                            (filepath, sftp_get_error_string(type_)))
         else:
             raise SftpError("Could not open file [%s]. There was an "
-                            "unspecified error." % (file_path))
+                            "unspecified error." % (filepath))
 
 def _sftp_close(sf):
     result = c_sftp_close(sf)
@@ -127,7 +132,7 @@ def sftp_stat(sf, file_path):
         type_ = sftp_get_error(sftp_session)
         if type_ >= 0:
             raise SftpError("Could not acquire attributes for STAT of [%s]: "
-                            "%d" % (file_path, type_))
+                            "%s" % (file_path, sftp_get_error_string(type_)))
         else:
             raise SftpError("Could not acquire attributes for STAT of [%s]. "
                             "There was an unspecified error." % (file_path))
@@ -161,8 +166,10 @@ def sftp_rename(sftp_session, filepath_old, filepath_new):
     if result < 0:
         type_ = sftp_get_error(sftp_session)
         if type_ >= 0:
-            raise SftpError("Rename of [%s] to [%s] failed: %d" % 
-                            (filepath_old, filepath_new, type_))
+            raise SftpError("Rename of [%s] to [%s] failed: %s" % 
+                            (filepath_old, 
+                             filepath_new, 
+                             sftp_get_error_string(type_)))
         else:
             raise SftpError("Rename of [%s] to [%s] failed. There was an "
                             "unspecified error." %
@@ -174,8 +181,8 @@ def sftp_chmod(sftp_session, file_path, mode):
     if result < 0:
         type_ = sftp_get_error(sftp_session)
         if type_ >= 0:
-            raise SftpError("CHMOD of [%s] for mode [%o] failed: %d" %
-                            (file_path, mode, type_))
+            raise SftpError("CHMOD of [%s] for mode [%o] failed: %s" %
+                            (file_path, mode, sftp_get_error_string(type_)))
         else:
             raise SftpError("CHMOD of [%s] for mode [%o] failed. There was " %
                             "an unspecified error." % (file_path, mode))
@@ -190,7 +197,9 @@ def sftp_chown(sftp_session, file_path, uid, gid):
         type_ = sftp_get_error(sftp_session)
         if type_ >= 0:
             raise SftpError("CHOWN of [%s] for UID (%d) and GID (%d) failed: "
-                            "%d" % (file_path, uid, gid, type_))
+                            "%s" % 
+                            (file_path, uid, gid, 
+                             sftp_get_error_string(type_)))
         else:
             raise SftpError("CHOWN of [%s] for UID (%d) and GID (%d) failed. "
                             "There was an unspecified error." % 
@@ -202,8 +211,8 @@ def sftp_mkdir(sftp_session, path, mode):
     if result < 0:
         type_ = sftp_get_error(sftp_session)
         if type_ >= 0:
-            raise SftpError("MKDIR of [%s] for mode [%o] failed: %d" %
-                            (path, mode, type_))
+            raise SftpError("MKDIR of [%s] for mode [%o] failed: %s" %
+                            (path, mode, sftp_get_error_string(type_)))
         else:
             raise SftpError("MKDIR of [%s] for mode [%o] failed. There was " %
                             "an unspecified error." % (path, mode))
@@ -214,7 +223,8 @@ def sftp_rmdir(sftp_session, path):
     if result < 0:
         type_ = sftp_get_error(sftp_session)
         if type_ >= 0:
-            raise SftpError("RMDIR of [%s] failed: %d" % (path, type_))
+            raise SftpError("RMDIR of [%s] failed: %s" % 
+                            (path, sftp_get_error_string(type_)))
         else:
             raise SftpError("RMDIR of [%s] failed. There was an unspecified "
                             "error." % (path))
@@ -225,7 +235,8 @@ def sftp_lstat(sftp_session, file_path):
     if attr is None:
         type_ = sftp_get_error(sftp_session)
         if type_ >= 0:
-            raise SftpError("LSTAT of [%s] failed: %d" % (file_path, type_))
+            raise SftpError("LSTAT of [%s] failed: %s" % 
+                            (file_path, sftp_get_error_string(type_)))
         else:
             raise SftpError("LSTAT of [%s] failed. There was an unspecified "
                             "error." % (file_path))
@@ -238,7 +249,8 @@ def sftp_unlink(sftp_session, file_path):
     if result < 0:
         type_ = sftp_get_error(sftp_session)
         if type_ >= 0:
-            raise SftpError("Unlink of [%s] failed: %d" % (file_path, type_))
+            raise SftpError("Unlink of [%s] failed: %s" % 
+                            (file_path, sftp_get_error_string(type_)))
         else:
             raise SftpError("Unlink of [%s] failed. There was an unspecified "
                             "error." % (file_path))
@@ -249,8 +261,8 @@ def sftp_readlink(sftp_session, file_path):
     if target is None:
         type_ = sftp_get_error(sftp_session)
         if type_ >= 0:
-            raise SftpError("Read of link [%s] failed: %d" % 
-                            (file_path, type_))
+            raise SftpError("Read of link [%s] failed: %s" % 
+                            (file_path, sftp_get_error_string(type_)))
         else:
             raise SftpError("Read of link [%s] failed. There was an "
                             "unspecified error." % (file_path))
@@ -263,8 +275,8 @@ def sftp_symlink(sftp_session, to, from_):
     if result < 0:
         type_ = sftp_get_error(sftp_session)
         if type_ >= 0:
-            raise SftpError("Symlink of [%s] to target [%s] failed: %d" % 
-                            (from_, to, type_))
+            raise SftpError("Symlink of [%s] to target [%s] failed: %s" % 
+                            (from_, to, sftp_get_error_string(type_)))
         else:
             raise SftpError("Symlink of [%s] to target [%s] failed. There was "
                             "an unspecified error." % (from_, to))
@@ -277,8 +289,8 @@ def sftp_setstat(sftp_session, file_path, entry_attributes):
     if result < 0:
         type_ = sftp_get_error(sftp_session)
         if type_ >= 0:
-            raise SftpError("Set-stat on [%s] failed: %d" % 
-                            (file_path, type_))
+            raise SftpError("Set-stat on [%s] failed: %s" % 
+                            (file_path, sftp_get_error_string(type_)))
         else:
             raise SftpError("Set-stat on [%s] failed. There was an "
                             "unspecified error." % (file_path))
@@ -286,13 +298,13 @@ def sftp_setstat(sftp_session, file_path, entry_attributes):
 def sftp_listdir(sftp_session, path):
     with SftpDirectory(sftp_session, path) as sd_:
         while 1:
-            attributes = sftp_readdir(sftp_session, sd_)
+            attributes = _sftp_readdir(sftp_session, sd_)
             if attributes is None:
                 break
 
             yield attributes
 
-        if not sftp_dir_eof(sd_):
+        if not _sftp_dir_eof(sd_):
             raise SftpError("We're done iterating the directory, but it's not "
                             "at EOF.")
 
