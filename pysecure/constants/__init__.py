@@ -1,3 +1,6 @@
+TIME_DATETIME_CONDENSED_FORMAT = '%Y%m%d-%H%M%S'
+TIME_DATETIME_FORMAT = '%Y-%m-%d %H:%M:%S'
+
 SERVER_RESPONSES = \
     { 0: ('SSH_FX_OK', 
           "No error."),

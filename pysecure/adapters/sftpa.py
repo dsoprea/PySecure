@@ -1,5 +1,8 @@
+import logging
+
 from datetime import datetime
-from ctypes import create_string_buffer, cast
+from ctypes import create_string_buffer, cast, c_void_p, c_int, c_char_p, \
+                   c_size_t
 
 from pysecure.constants.ssh import SSH_NO_ERROR
 from pysecure.constants import SERVER_RESPONSES
@@ -10,7 +13,8 @@ from pysecure.calls.sftpi import c_sftp_get_error, c_sftp_new, c_sftp_init, \
                                  c_sftp_dir_eof, c_sftp_tell, c_sftp_seek, \
                                  c_sftp_read, c_sftp_fstat, c_sftp_rewind, \
                                  c_sftp_close, c_sftp_rename, c_sftp_chmod, \
-                                 c_sftp_chown, c_sftp_mkdir, c_sftp_rmdir
+                                 c_sftp_chown, c_sftp_mkdir, c_sftp_rmdir, \
+                                 c_sftp_stat
 
 from pysecure.exceptions import SftpError
 
@@ -74,6 +78,8 @@ def _sftp_dir_eof(sd):
     return (c_sftp_dir_eof(sd) == 1)
 
 def _sftp_open(sftp_session, filepath, access_type, mode):
+    logging.debug("Opening file: %s" % (filepath))
+
     sf = c_sftp_open(sftp_session, filepath, access_type, mode)
     if sf is None:
         type_ = sftp_get_error(sftp_session)
@@ -84,7 +90,12 @@ def _sftp_open(sftp_session, filepath, access_type, mode):
             raise SftpError("Could not open file [%s]. There was an "
                             "unspecified error." % (filepath))
 
+    logging.debug("File [%s] opened as [%s]." % (filepath, sf))
+    return sf
+
 def _sftp_close(sf):
+    logging.debug("Closing file: %s" % (sf))
+
     result = c_sftp_close(sf)
     if result != SSH_NO_ERROR:
         raise SftpError("Close failed with code (%d)." % (result))
@@ -114,7 +125,7 @@ def sftp_seek(sf, position):
 
 def sftp_read(sf, count):
     buffer_ = create_string_buffer(count)
-    if c_sftp_read(sf, cast(buffer_, c_void_p), c_int(count)) < 0:
+    if c_sftp_read(sf, cast(buffer_, c_void_p), c_size_t(count)) < 0:
         raise SftpError("Read failed.")
 
     return buffer_.value
@@ -127,7 +138,7 @@ def sftp_fstat(sf):
     return EntryAttributes(attr)
 
 def sftp_stat(sf, file_path):
-    attr = c_sftp_fstat(sf, c_char_p(file_path))
+    attr = c_sftp_stat(sf, c_char_p(file_path))
     if attr is None:
         type_ = sftp_get_error(sftp_session)
         if type_ >= 0:
@@ -366,6 +377,12 @@ class EntryAttributes(object):
 
     def __getattr__(self, key):
         return getattr(self.__attr_raw.contents, key)
+
+    def __repr__(self):
+        return repr(self.__attr_raw.contents)
+
+    def __str__(self):
+        return str(self.__attr_raw.contents)
 
     @property
     def raw(self):

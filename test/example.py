@@ -4,7 +4,7 @@ import logging
 
 from pysecure import log_config
 
-from pysecure.constants.sftp import O_WRONLY, O_RDWR
+from pysecure.constants.sftp import O_WRONLY, O_RDWR, O_CREAT
 from pysecure.adapters.ssha import ssh_is_server_known, \
                                    ssh_write_knownhost, \
                                    ssh_userauth_privatekey_file, SshSession, \
@@ -12,7 +12,8 @@ from pysecure.adapters.ssha import ssh_is_server_known, \
 
 from pysecure.adapters.sftpa import SftpSession, sftp_listdir, SftpFile, \
                                     sftp_write, sftp_tell, sftp_seek, \
-                                    sftp_read, sftp_fstat, sftp_rewind
+                                    sftp_read, sftp_fstat, sftp_rewind, \
+                                    sftp_stat
 
 user = 'dustin'
 host = 'dustinplex'
@@ -36,8 +37,9 @@ with SshSystem():
             with SftpSession(ssh) as sftp:
                 test_data = '1234'
 # TODO: Make SftpFile a file-like object.
-                with SftpFile(sftp, 'test_sftp_file', O_RDWR, 0o644) as sf:
+                with SftpFile(sftp, 'test_sftp_file', O_RDWR|O_CREAT, 0o644) as sf:
                     print("Position at top of file: %d" % (sftp_tell(sf)))
+
                     sftp_write(sf, test_data)
                     print("Position at bottom of file: %d" % (sftp_tell(sf)))
 
@@ -51,7 +53,7 @@ with SshSystem():
                     sftp_rewind(sf)
 
                     print("Position after rewind: %d" % (sftp_tell(sf)))
-# TODO: Implement str/repr on attributes.
+# TODO: Implement str/repr on structures.
                     attr = sftp_fstat(sf)
                     print(attr)
 

@@ -1,6 +1,9 @@
 import platform
 
 from ctypes import *
+from datetime import datetime
+
+from pysecure.constants import TIME_DATETIME_FORMAT
 
 c_mode_t = c_int
 c_uid_t = c_uint32
@@ -44,6 +47,13 @@ class _CSftpAttributesStruct(Structure):
                 ('extended_count', c_uint32),
                 ('extended_type', c_void_p), # NI: ssh_string
                 ('extended_data', c_void_p)] # NI: ssh_string
+
+    def __repr__(self):
+        mtime_phrase = datetime.fromtimestamp(self.mtime).\
+                                strftime(TIME_DATETIME_FORMAT)
+
+        return ('<ATTR "%s" S=(%d) T=(%d) MT=[%s]>' % 
+                (self.name, self.size, self.type, mtime_phrase))
 
 _CSftpAttributes = POINTER(_CSftpAttributesStruct)
 

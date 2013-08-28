@@ -30,7 +30,7 @@ with SshSystem():
             ssh_is_server_known(ssh, cb=hostkey_gate)
             ssh_userauth_privatekey_file(ssh, None, key_filepath, None)
 
-            with SftpSession(session) as sftp:
+            with SftpSession(ssh) as sftp:
                 print("Name                         Size Perms    Owner\tGroup\n")
                 for attributes in sftp_listdir(sftp, '.'):
                     print("%-40s %10d %.8o %s(%d)\t%s(%d)" % 
