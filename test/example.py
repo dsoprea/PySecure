@@ -10,13 +10,10 @@ from pysecure.adapters.ssha import ssh_is_server_known, \
                                    ssh_userauth_privatekey_file, SshSession, \
                                    SshConnect, SshSystem, PublicKeyHash
 
-from pysecure.adapters.sftpa import SftpSession, sftp_listdir, SftpFile, \
-                                    sftp_write, sftp_tell, sftp_seek, \
-                                    sftp_read, sftp_fstat, sftp_rewind, \
-                                    sftp_stat
+from pysecure.adapters.sftpa import SftpSession, sftp_listdir, SftpFile
 
 user = 'dustin'
-host = 'dustinplex'
+host = 'dustinlost'
 key_filepath = '/home/dustin/.ssh/id_dsa'
 verbosity = 0
 
@@ -31,38 +28,31 @@ with SshSystem():
                 
                 return would_accept
 
-            ssh_is_server_known(ssh, cb=hostkey_gate)
+            ssh_is_server_known(ssh, allow_new=True, cb=hostkey_gate)
             ssh_userauth_privatekey_file(ssh, None, key_filepath, None)
 
             with SftpSession(ssh) as sftp:
                 test_data = '1234'
 # TODO: Make SftpFile a file-like object.
                 with SftpFile(sftp, 'test_sftp_file', O_RDWR|O_CREAT, 0o644) as sf:
-                    print("Position at top of file: %d" % (sftp_tell(sf)))
+                    print("Position at top of file: %d" % (sf.position))
 
-                    sftp_write(sf, test_data)
-                    print("Position at bottom of file: %d" % (sftp_tell(sf)))
+                    sf.write(test_data)
+                    print("Position at bottom of file: %d" % (sf.position))
 
-                    sftp_seek(sf, 0)
-                    print("Position at position (0): %d" % (sftp_tell(sf)))
+                    sf.seek(0)
+                    print("Position at position (0): %d" % (sf.position))
 
-                    buffer_ = sftp_read(sf, 100)
+                    buffer_ = sf.read(100)
                     print("Read: [%s]" % (buffer_))
 
-                    print("Position after read: %d" % (sftp_tell(sf)))
-                    sftp_rewind(sf)
+                    print("Position after read: %d" % (sf.position))
+                    sf.rewind()
 
-                    print("Position after rewind: %d" % (sftp_tell(sf)))
+                    print("Position after rewind: %d" % (sf.position))
 # TODO: Implement str/repr on structures.
-                    attr = sftp_fstat(sf)
+                    attr = sf.fstat()
                     print(attr)
-
-#def sftp_write(sf, buffer_):
-#def sftp_tell(sf):
-#def sftp_seek(sf, position):
-#def sftp_read(sf, count):
-#def sftp_fstat(sf):
-#def sftp_rewind(sf):
 
 # TODO: Move all session operations to the session object.
 

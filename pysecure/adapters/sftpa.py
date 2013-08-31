@@ -100,13 +100,13 @@ def _sftp_close(sf):
     if result != SSH_NO_ERROR:
         raise SftpError("Close failed with code (%d)." % (result))
 
-def sftp_write(sf, buffer_):
+def _sftp_write(sf, buffer_):
     buffer_raw = create_string_buffer(buffer_)
     result = c_sftp_write(sf, cast(buffer_raw, c_void_p), len(buffer_))
     if result < 0:
         raise SftpError("Could not write to file.")
 
-def sftp_tell(sf):
+def _sftp_tell(sf):
     position = c_sftp_tell(sf)
     if position < 0:
         raise SftpError("Could not read current position in file.")
@@ -117,20 +117,20 @@ def sftp_tell(sf):
     
 # c_sftp_tell64
 
-def sftp_seek(sf, position):
+def _sftp_seek(sf, position):
     if c_sftp_seek(sf, position) < 0:
         raise SftpError("Could not seek to the position (%d)." % (position))
     
 # c_sftp_seek64
 
-def sftp_read(sf, count):
+def _sftp_read(sf, count):
     buffer_ = create_string_buffer(count)
     if c_sftp_read(sf, cast(buffer_, c_void_p), c_size_t(count)) < 0:
         raise SftpError("Read failed.")
 
     return buffer_.value
 
-def sftp_fstat(sf):
+def _sftp_fstat(sf):
     attr = c_sftp_fstat(sf)
     if attr is None:
         raise SftpError("Could not acquire attributes for FSTAT.")
@@ -152,24 +152,11 @@ def sftp_stat(sf, file_path):
 
 #    print(attr)
 
-#     position = c_sftp_tell(sf)
-#     if position < 0:
-#          raise Exception("Could not read current position in file.")
-# 
-#    print("Current position 2: %d" % (position))
-
-def sftp_rewind(sf):
+def _sftp_rewind(sf):
     # Returns VOID.
     c_sftp_rewind(sf)
 
-#    position = c_sftp_tell(sf)
-#    if position < 0:
-#        raise Exception("Could not read current position in file.")
-#        
-#    print("Current position 3: %d" % (position))
-
 def sftp_rename(sftp_session, filepath_old, filepath_new):
-#    filepath_new = ('%s.old' % (filepath))
     result = c_sftp_rename(sftp_session, 
                            c_char_p(filepath_old), 
                            c_char_p(filepath_new))
@@ -360,10 +347,33 @@ class SftpFile(object):
                                self.__access_type, 
                                self.__mode)
 
-        return self.__sf
+        return self
 
     def __exit__(self, e_type, e_value, e_tb):
         _sftp_close(self.__sf)
+
+    def write(self, buffer_):
+        return _sftp_write(self.__sf, buffer_)
+
+    def seek(self, position):
+        return _sftp_seek(self.__sf, position)
+
+    def read(self, count):
+        return _sftp_read(self.__sf, count)
+
+    def fstat(self):
+        return _sftp_fstat(self.__sf)
+        
+    def rewind(self):
+        return _sftp_rewind(self.__sf)
+
+    @property
+    def sf(self):
+        return self.__sf
+
+    @property
+    def position(self):
+        return _sftp_tell(self.__sf)
 
 
 class EntryAttributes(object):

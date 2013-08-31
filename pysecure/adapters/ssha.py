@@ -113,7 +113,7 @@ def ssh_is_server_known(ssh_session, allow_new=False, cb=None):
 
         if cb is not None:
             hk = repr(PublicKeyHash(ssh_session))
-            allow_auth = cb(hk, False)
+            allow_auth = cb(hk, allow_new)
             
             logging.debug("Host-key callback returned [%s] when no host-key "
                           "yet available." % (allow_auth))
