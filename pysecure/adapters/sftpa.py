@@ -139,9 +139,11 @@ def _sftp_fstat(sf):
 
     return EntryAttributes(attr)
 
-# TODO: Implement a method on SftpSession.
+def _sftp_rewind(sf):
+    # Returns VOID.
+    c_sftp_rewind(sf)
 
-def sftp_stat(sftp_session, file_path):
+def _sftp_stat(sftp_session, file_path):
     attr = c_sftp_stat(sftp_session, c_char_p(file_path))
     if attr is None:
         type_ = sftp_get_error(sftp_session)
@@ -154,13 +156,7 @@ def sftp_stat(sftp_session, file_path):
 
     return EntryAttributes(attr)
 
-def _sftp_rewind(sf):
-    # Returns VOID.
-    c_sftp_rewind(sf)
-
-# TODO: Implement a method on SftpSession.
-
-def sftp_rename(sftp_session, filepath_old, filepath_new):
+def _sftp_rename(sftp_session, filepath_old, filepath_new):
     result = c_sftp_rename(sftp_session, 
                            c_char_p(filepath_old), 
                            c_char_p(filepath_new))
@@ -177,9 +173,7 @@ def sftp_rename(sftp_session, filepath_old, filepath_new):
                             "unspecified error." %
                             (filepath_old, filespace_new))
 
-# TODO: Implement a method on SftpSession.
-
-def sftp_chmod(sftp_session, file_path, mode):
+def _sftp_chmod(sftp_session, file_path, mode):
     result = c_sftp_chmod(sftp_session, c_char_p(file_path), c_int(mode))
 
     if result < 0:
@@ -191,9 +185,7 @@ def sftp_chmod(sftp_session, file_path, mode):
             raise SftpError("CHMOD of [%s] for mode [%o] failed. There was " %
                             "an unspecified error." % (file_path, mode))
 
-# TODO: Implement a method on SftpSession.
-
-def sftp_chown(sftp_session, file_path, uid, gid):
+def _sftp_chown(sftp_session, file_path, uid, gid):
     result = c_sftp_chown(sftp_session, 
                           c_char_p(file_path), 
                           c_int(uid), 
@@ -211,9 +203,7 @@ def sftp_chown(sftp_session, file_path, uid, gid):
                             "There was an unspecified error." % 
                             (file_path, mode))
 
-# TODO: Implement a method on SftpSession.
-
-def sftp_mkdir(sftp_session, path, mode):
+def _sftp_mkdir(sftp_session, path, mode):
     result = c_sftp_mkdir(sftp_session, c_char_p(path), c_int(mode))
 
     if result < 0:
@@ -225,9 +215,7 @@ def sftp_mkdir(sftp_session, path, mode):
             raise SftpError("MKDIR of [%s] for mode [%o] failed. There was " %
                             "an unspecified error." % (path, mode))
 
-# TODO: Implement a method on SftpSession.
-
-def sftp_rmdir(sftp_session, path):
+def _sftp_rmdir(sftp_session, path):
     result = c_sftp_rmdir(sftp_session, c_char_p(path))
 
     if result < 0:
@@ -239,9 +227,7 @@ def sftp_rmdir(sftp_session, path):
             raise SftpError("RMDIR of [%s] failed. There was an unspecified "
                             "error." % (path))
 
-# TODO: Implement a method on SftpSession.
-
-def sftp_lstat(sftp_session, file_path):
+def _sftp_lstat(sftp_session, file_path):
     attr = c_sftp_lstat(sftp_session, c_char_p(file_path))
 
     if attr is None:
@@ -255,9 +241,7 @@ def sftp_lstat(sftp_session, file_path):
 
     return EntryAttributes(attr)
 
-# TODO: Implement a method on SftpSession.
-
-def sftp_unlink(sftp_session, file_path):
+def _sftp_unlink(sftp_session, file_path):
     result = c_sftp_lstat(sftp_session, c_char_p(file_path))
 
     if result < 0:
@@ -269,9 +253,7 @@ def sftp_unlink(sftp_session, file_path):
             raise SftpError("Unlink of [%s] failed. There was an unspecified "
                             "error." % (file_path))
 
-# TODO: Implement a method on SftpSession.
-
-def sftp_readlink(sftp_session, file_path):
+def _sftp_readlink(sftp_session, file_path):
     target = c_sftp_readlink(sftp_session, c_char_p(file_path))
 
     if target is None:
@@ -285,9 +267,7 @@ def sftp_readlink(sftp_session, file_path):
 
     return target
 
-# TODO: Implement a method on SftpSession.
-
-def sftp_symlink(sftp_session, to, from_):
+def _sftp_symlink(sftp_session, to, from_):
     result = c_sftp_symlink(sftp_session, c_char_p(to), c_char_p(from_))
 
     if result < 0:
@@ -299,9 +279,7 @@ def sftp_symlink(sftp_session, to, from_):
             raise SftpError("Symlink of [%s] to target [%s] failed. There was "
                             "an unspecified error." % (from_, to))
 
-# TODO: Implement a method on SftpSession.
-
-def sftp_setstat(sftp_session, file_path, entry_attributes):
+def _sftp_setstat(sftp_session, file_path, entry_attributes):
     result = c_sftp_setstat(sftp_session,
                             c_char_p(file_path),
                             entry_attributes.raw)
@@ -315,9 +293,7 @@ def sftp_setstat(sftp_session, file_path, entry_attributes):
             raise SftpError("Set-stat on [%s] failed. There was an "
                             "unspecified error." % (file_path))
 
-# TODO: Implement a method on SftpSession.
-
-def sftp_listdir(sftp_session, path):
+def _sftp_listdir(sftp_session, path):
     with SftpDirectory(sftp_session, path) as sd_:
         while 1:
             attributes = _sftp_readdir(sftp_session, sd_)
@@ -339,10 +315,50 @@ class SftpSession(object):
         self.__sftp_session = _sftp_new(self.__ssh_session)
         _sftp_init(self.__sftp_session)
 
-        return self.__sftp_session
+        return self
 
     def __exit__(self, e_type, e_value, e_tb):
         _sftp_free(self.__sftp_session)
+
+    def stat(self, file_path):
+        return _sftp_stat(self.__sftp_session, file_path)
+
+    def rename(self, filepath_old, filepath_new):
+        return _sftp_rename(self.__sftp_session, filepath_old, filepath_new)
+
+    def chmod(self, file_path, mode):
+        return _sftp_chmod(self.__sftp_session, file_path, mode)
+
+    def chown(self, file_path, uid, gid):
+        return _sftp_chown(self.__sftp_session, file_path, uid, gid)
+
+    def mkdir(self, path, mode=0o755):
+        return _sftp_mkdir(self.__sftp_session, path, mode)
+
+    def rmdir(self, path):
+        return _sftp_rmdir(self.__sftp_session, path)
+
+    def lstat(self, file_path):
+        return _sftp_lstat(self.__sftp_session, file_path)
+
+    def unlink(self, file_path):
+        return _sftp_unlink(self.__sftp_session, file_path)
+
+    def readlink(self, file_path):
+        return _sftp_readlink(self.__sftp_session, file_path)
+
+    def symlink(self, to, from_):
+        return _sftp_symlink(self.__sftp_session, to, from_)
+
+    def setstat(self, file_path, entry_attributes):
+        return _sftp_setstat(self.__sftp_session, file_path, entry_attributes)
+
+    def listdir(self, path):
+        return _sftp_listdir(self.__sftp_session, path)
+
+    @property
+    def session_id(self):
+        return self.__sftp_session
 
 
 class SftpDirectory(object):
@@ -364,7 +380,11 @@ class SftpFile(object):
 
         at_im = self.__at_om_to_im(access_type_om)
 
-        self.__sftp_session = sftp_session
+        sftp_session_id = sftp_session.session_id \
+                            if issubclass(sftp_session.__class__, SftpSession) \
+                            else sftp_session
+
+        self.__sftp_session = sftp_session_id
         self.__filepath = filepath
         self.__access_type = at_im
         self.__create_mode = create_mode
@@ -626,26 +646,16 @@ class SftpFileObject(object):
         """Reposition the file pointer."""
 
         if whence == SEEK_SET:
-            self.__log.debug("Seeking to (%d) bytes from beginning." % 
-                             (offset))
-
             self.__sf.seek(offset)
         elif whence == SEEK_CUR:
-            self.__log.debug("Seeking to (%d) bytes from current position." % 
-                             (offset))
-
             self.__sf.seek(self.tell() + offset)
         elif whence == SEEK_END:
-            self.__log.debug("Seeking to (%d) bytes from the end." % (offset))
             self.__sf.seek(self.__sf.filesize - offset)
 
     def tell(self):
         """Report the current position."""
 
-        position = self.__sf.position
-        self.__log.debug("Current position is (%d) bytes." % (position))
-        
-        return position
+        return self.__sf.position
 
     def flush(self):
         """Flush data. This is a no-op in our context."""

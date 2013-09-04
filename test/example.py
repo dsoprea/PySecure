@@ -10,10 +10,10 @@ from pysecure.adapters.ssha import ssh_is_server_known, \
                                    ssh_userauth_privatekey_file, SshSession, \
                                    SshConnect, SshSystem, PublicKeyHash
 
-from pysecure.adapters.sftpa import SftpSession, sftp_listdir, SftpFile
+from pysecure.adapters.sftpa import SftpSession, SftpFile
 
 user = 'dustin'
-host = 'dustinlost'
+host = 'localhost'
 key_filepath = '/home/dustin/.ssh/id_dsa'
 verbosity = 0
 
@@ -32,8 +32,6 @@ with SshSystem():
             ssh_userauth_privatekey_file(ssh, None, key_filepath, None)
 
             with SftpSession(ssh) as sftp:
-                test_data = '1234'
-
-                with SftpFile(sftp, 'sftp_write.txt', 'w') as sf:
-                    sf.write(test_data)
+                sftp.mkdir("xyz")
+                sftp.rmdir("xyz")
 
