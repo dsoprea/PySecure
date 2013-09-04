@@ -751,11 +751,11 @@ class SftpFileObject(object):
 # c_sftp_seek64
 # c_sftp_tell64
 
-#c_sftp_extensions_get_count
-#c_sftp_extensions_get_name
-#c_sftp_fstatvfs
-#c_sftp_server_version
-#c_sftp_statvfs
-#c_sftp_statvfs_free
-#c_sftp_utimes
+# c_sftp_extensions_get_count
+# c_sftp_extensions_get_name
+# c_sftp_fstatvfs
+# c_sftp_server_version
+# c_sftp_statvfs
+# c_sftp_statvfs_free
+# c_sftp_utimes
 
