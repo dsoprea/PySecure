@@ -76,11 +76,11 @@ These are examples of how to list a directory and read files:
                                        SshSession, SshConnect, SshSystem, \
                                        PublicKeyHash
 
-    from pysecure.adapters.sftpa import SftpSession, sftp_listdir
+    from pysecure.adapters.sftpa import SftpSession, SftpFile
 
-    user = 'dustin'
+    user = 'user'
     host = 'remote_hostname'
-    key_filepath = '/home/dustin/.ssh/id_dsa'
+    key_filepath = '/home/user/.ssh/id_dsa'
     verbosity = 1
 
     with SshSystem():
@@ -100,7 +100,7 @@ These are examples of how to list a directory and read files:
                 # List entries in home directory.
 
                 print("Name                         Size Perms    Owner\tGroup\n")
-                for attributes in sftp_listdir(sftp, '.'):
+                for attributes in sftp.listdir('.'):
                     print("%-40s %10d %.8o %s(%d)\t%s(%d)" % 
                           (attributes.name[0:40], attributes.size, 
                            attributes.permissions, attributes.owner, 
