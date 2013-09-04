@@ -78,10 +78,15 @@ with SshSystem():
             ssh_userauth_privatekey_file(ssh, None, key_filepath, None)
 
             with SftpSession(ssh) as sftp:
-                test_data = '1234'
+                with SftpFile(sftp, 'test_doc_rfc1958.txt') as sf:
+                    i = 0
+                    for data in sf:
+                        stdout.write("> " + data)
 
-                with SftpFile(sftp, 'sftp_write.txt', 'w') as sf:
-                    sf.write(test_data)
+                        if i >= 30:
+                            break
+
+                        i += 1
  
 # TODO: Implement str/repr on structures.
 #                    attr = sf.raw.fstat()

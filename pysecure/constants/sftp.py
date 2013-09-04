@@ -6,3 +6,9 @@ O_CREAT  = 00000100
 O_EXCL   = 00000200
 O_TRUNC  = 00001000
 
+# Access modes 
+FA_WRITE = 'w'
+FA_READ = 'r'
+FA_WRITEBIN = 'wb'
+FA_READBIN = 'rb'
+

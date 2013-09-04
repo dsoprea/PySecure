@@ -17,52 +17,6 @@ host = 'dustinlost'
 key_filepath = '/home/dustin/.ssh/id_dsa'
 verbosity = 0
 
-from sys import stdout
-
-def dumphex(data):
-    data_len = len(data)
-    row_size = 16
-
-    i = 0
-    while i < data_len:
-        stdout.write('%05X:' % (i))
-    
-        j = 0
-        while j < row_size:
-            index = i + j
-
-            if j == 8:
-                stdout.write(' ')
-
-            try:
-                stdout.write(' %02X' % (ord(data[index])))
-            except IndexError:
-                stdout.write('   ')
-        
-            j += 1
-    
-        stdout.write(' | ')
-    
-        j = 0
-        while j < row_size:
-            index = i + j
-
-            try:
-                byte = data[index]
-            except IndexError:
-                break
-            else:
-                if ord(byte) < 32:
-                    byte = '.'
-
-                stdout.write('%s' % (byte))
-
-            j += 1
-
-        print
-
-        i += row_size
-
 with SshSystem():
     with SshSession(user=user, host=host, verbosity=verbosity) as ssh:
         with SshConnect(ssh):
@@ -80,9 +34,43 @@ with SshSystem():
             with SftpSession(ssh) as sftp:
                 test_data = '1234'
 
-                with SftpFile(sftp, 'sftp_write.txt', 'w') as sf:
-                    sf.write(test_data)
- 
+#                with SftpFile(sftp, 'test_doc_rfc1958.txt', 'r') as sf:
+                with SftpFile(sftp, 'test_libgksu2.so.0', 'r') as sf:
+#                    buffer_ = sf.read(100)
+                    buffer_ = sf.read()
+
+                    with file('/tmp/sftp_dump', 'w') as f:
+                        f.write(buffer_)
+
+                    print("Read (%d) bytes." % (len(buffer_)))
+#                    print("Read: [%s]" % (buffer_))
+
+
+
+#                    print("Position at top of file: %d" % (sf.position))
+#
+#                    sf.write(test_data)
+#                    print("Position at bottom of file: %d" % (sf.position))
+#
+#                    sf.seek(0)
+#                    print("Position at position (0): %d" % (sf.position))
+#
+#                    buffer_ = sf.read(100)
+#                    print("Read: [%s]" % (buffer_))
+#
+#                    print("Position after read: %d" % (sf.position))
+#                    sf.rewind()
+#
+#                    print("Position after rewind: %d" % (sf.position))
+#
+#                    buffer_ = sf.read(100)
+#                    print("Read 1: (%d) bytes" % (len(buffer_)))
+#                    print("Position after read 1: %d" % (sf.position))
+#
+#                    buffer_ = sf.read(100)
+#                    print("Read 2: (%d) bytes" % (len(buffer_)))
+#                    print("Position after read 2: %d" % (sf.position))
+
 # TODO: Implement str/repr on structures.
 #                    attr = sf.raw.fstat()
 #                    print(attr)
