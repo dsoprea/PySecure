@@ -73,6 +73,6 @@ c_sftp_attributes = _CSftpAttributes
 c_sftp_dir = c_void_p
 c_sftp_file = c_void_p
 
-# A simple aliasing assignment doesn't work with this.
+# A simple aliasing assignment doesn't work, here.
 # c_sftp_statvfs = c_void_p
 

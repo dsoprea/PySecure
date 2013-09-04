@@ -120,14 +120,10 @@ def _sftp_tell(sf):
 
     return position
     
-# c_sftp_tell64
-
 def _sftp_seek(sf, position):
     if c_sftp_seek(sf, position) < 0:
         raise SftpError("Could not seek to the position (%d)." % (position))
     
-# c_sftp_seek64
-
 def _sftp_read(sf, count):
     buffer_ = create_string_buffer(count)
     received_bytes = c_sftp_read(sf, cast(buffer_, c_void_p), c_size_t(count))
@@ -143,8 +139,10 @@ def _sftp_fstat(sf):
 
     return EntryAttributes(attr)
 
-def sftp_stat(sf, file_path):
-    attr = c_sftp_stat(sf, c_char_p(file_path))
+# TODO: Implement a method on SftpSession.
+
+def sftp_stat(sftp_session, file_path):
+    attr = c_sftp_stat(sftp_session, c_char_p(file_path))
     if attr is None:
         type_ = sftp_get_error(sftp_session)
         if type_ >= 0:
@@ -156,11 +154,11 @@ def sftp_stat(sf, file_path):
 
     return EntryAttributes(attr)
 
-#    print(attr)
-
 def _sftp_rewind(sf):
     # Returns VOID.
     c_sftp_rewind(sf)
+
+# TODO: Implement a method on SftpSession.
 
 def sftp_rename(sftp_session, filepath_old, filepath_new):
     result = c_sftp_rename(sftp_session, 
@@ -179,6 +177,8 @@ def sftp_rename(sftp_session, filepath_old, filepath_new):
                             "unspecified error." %
                             (filepath_old, filespace_new))
 
+# TODO: Implement a method on SftpSession.
+
 def sftp_chmod(sftp_session, file_path, mode):
     result = c_sftp_chmod(sftp_session, c_char_p(file_path), c_int(mode))
 
@@ -190,6 +190,8 @@ def sftp_chmod(sftp_session, file_path, mode):
         else:
             raise SftpError("CHMOD of [%s] for mode [%o] failed. There was " %
                             "an unspecified error." % (file_path, mode))
+
+# TODO: Implement a method on SftpSession.
 
 def sftp_chown(sftp_session, file_path, uid, gid):
     result = c_sftp_chown(sftp_session, 
@@ -209,6 +211,8 @@ def sftp_chown(sftp_session, file_path, uid, gid):
                             "There was an unspecified error." % 
                             (file_path, mode))
 
+# TODO: Implement a method on SftpSession.
+
 def sftp_mkdir(sftp_session, path, mode):
     result = c_sftp_mkdir(sftp_session, c_char_p(path), c_int(mode))
 
@@ -221,6 +225,8 @@ def sftp_mkdir(sftp_session, path, mode):
             raise SftpError("MKDIR of [%s] for mode [%o] failed. There was " %
                             "an unspecified error." % (path, mode))
 
+# TODO: Implement a method on SftpSession.
+
 def sftp_rmdir(sftp_session, path):
     result = c_sftp_rmdir(sftp_session, c_char_p(path))
 
@@ -232,6 +238,8 @@ def sftp_rmdir(sftp_session, path):
         else:
             raise SftpError("RMDIR of [%s] failed. There was an unspecified "
                             "error." % (path))
+
+# TODO: Implement a method on SftpSession.
 
 def sftp_lstat(sftp_session, file_path):
     attr = c_sftp_lstat(sftp_session, c_char_p(file_path))
@@ -247,6 +255,8 @@ def sftp_lstat(sftp_session, file_path):
 
     return EntryAttributes(attr)
 
+# TODO: Implement a method on SftpSession.
+
 def sftp_unlink(sftp_session, file_path):
     result = c_sftp_lstat(sftp_session, c_char_p(file_path))
 
@@ -258,6 +268,8 @@ def sftp_unlink(sftp_session, file_path):
         else:
             raise SftpError("Unlink of [%s] failed. There was an unspecified "
                             "error." % (file_path))
+
+# TODO: Implement a method on SftpSession.
 
 def sftp_readlink(sftp_session, file_path):
     target = c_sftp_readlink(sftp_session, c_char_p(file_path))
@@ -273,6 +285,8 @@ def sftp_readlink(sftp_session, file_path):
 
     return target
 
+# TODO: Implement a method on SftpSession.
+
 def sftp_symlink(sftp_session, to, from_):
     result = c_sftp_symlink(sftp_session, c_char_p(to), c_char_p(from_))
 
@@ -284,6 +298,8 @@ def sftp_symlink(sftp_session, to, from_):
         else:
             raise SftpError("Symlink of [%s] to target [%s] failed. There was "
                             "an unspecified error." % (from_, to))
+
+# TODO: Implement a method on SftpSession.
 
 def sftp_setstat(sftp_session, file_path, entry_attributes):
     result = c_sftp_setstat(sftp_session,
@@ -298,6 +314,8 @@ def sftp_setstat(sftp_session, file_path, entry_attributes):
         else:
             raise SftpError("Set-stat on [%s] failed. There was an "
                             "unspecified error." % (file_path))
+
+# TODO: Implement a method on SftpSession.
 
 def sftp_listdir(sftp_session, path):
     with SftpDirectory(sftp_session, path) as sd_:
@@ -719,6 +737,9 @@ class SftpFileObject(object):
     @property
     def raw(self):
         return self.__sf
+
+# c_sftp_seek64
+# c_sftp_tell64
 
 #c_sftp_extensions_get_count
 #c_sftp_extensions_get_name

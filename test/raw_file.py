@@ -59,22 +59,6 @@ with SshSystem():
                     print("Read 2: (%d) bytes" % (len(buffer_)))
                     print("Position after read 2: %d" % (sf.position))
 
-# TODO: Implement str/repr on structures.
                     attr = sf.fstat()
                     print(attr)
-
-# TODO: Move all session operations to the session object.
-
-#def sftp_stat(sftp_session, file_path):
-#def sftp_rename(sftp_session, filepath_old, filepath_new):
-#def sftp_chmod(sftp_session, file_path, mode):
-#def sftp_chown(sftp_session, file_path, uid, gid):
-#def sftp_mkdir(sftp_session, path, mode):
-#def sftp_rmdir(sftp_session, path):
-#def sftp_lstat(sftp_session, file_path):
-#def sftp_unlink(sftp_session, file_path):
-#def sftp_readlink(sftp_session, file_path):
-#def sftp_symlink(sftp_session, to, from_):
-#def sftp_setstat(sftp_session, file_path, entry_attributes):
-
 
