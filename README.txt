@@ -142,6 +142,8 @@ These are examples of how to list a directory and read files:
 Port-Forwarding Examples
 ========================
 
+Local Forwarding:
+
     from pysecure.adapters.channela import SshChannel
 
     host_source = 'localhost'
@@ -162,4 +164,25 @@ Port-Forwarding Examples
 
         received = sc.read(1024)
         print("Received:\n\n%s" % (received))
+
+Reverse Forwarding:
+
+        # This functionality starts with an SshSession. Therefore, an import of
+        # SshChannel isn't necessary.
+
+        server_address = None
+        server_port = 8080
+        accept_timeout_ms = 60000
+
+        port = ssh.forward_listen(server_address, server_port)
+        with ssh.forward_accept(accept_timeout_ms) as sc:
+            while 1:
+                data = sc.read(2048)
+                if data == '':
+                    continue
+
+                # Do something with the data.
+                response = "Received."
+
+                sc.write(response)
 

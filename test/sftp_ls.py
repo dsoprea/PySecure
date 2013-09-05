@@ -3,12 +3,8 @@
 import logging
 
 from pysecure import log_config
-
-from pysecure.adapters.ssha import ssh_is_server_known, \
-                                   ssh_write_knownhost, \
-                                   ssh_userauth_privatekey_file, SshSession, \
-                                   SshConnect, SshSystem, PublicKeyHash
-
+from pysecure.adapters.ssha import SshSession, SshConnect, SshSystem, \
+                                   PublicKeyHash
 from pysecure.adapters.sftpa import SftpSession
 
 user = 'dustin'
@@ -27,8 +23,8 @@ with SshSystem():
                 
                 return would_accept
 
-            ssh_is_server_known(ssh, allow_new=True, cb=hostkey_gate)
-            ssh_userauth_privatekey_file(ssh, None, key_filepath, None)
+            ssh.is_server_known(allow_new=True, cb=hostkey_gate)
+            ssh.userauth_privatekey_file(None, key_filepath, None)
 
             with SftpSession(ssh) as sftp:
                 print("Name                         Size Perms    Owner\tGroup\n")

@@ -3,11 +3,8 @@
 import logging
 
 from pysecure import log_config
-
-from pysecure.constants.sftp import O_WRONLY, O_RDWR, O_CREAT
 from pysecure.adapters.ssha import SshSession, SshConnect, SshSystem, \
                                    PublicKeyHash
-
 from pysecure.adapters.channela import SshChannel
 
 user = 'dustin'

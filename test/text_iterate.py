@@ -5,13 +5,8 @@ import logging
 from sys import stdout
 
 from pysecure import log_config
-
-from pysecure.constants.sftp import O_WRONLY, O_RDWR, O_CREAT
-from pysecure.adapters.ssha import ssh_is_server_known, \
-                                   ssh_write_knownhost, \
-                                   ssh_userauth_privatekey_file, SshSession, \
-                                   SshConnect, SshSystem, PublicKeyHash
-
+from pysecure.adapters.ssha import SshSession, SshConnect, SshSystem, \
+                                   PublicKeyHash
 from pysecure.adapters.sftpa import SftpSession, SftpFile
 
 user = 'dustin'
@@ -30,8 +25,8 @@ with SshSystem():
                 
                 return would_accept
 
-            ssh_is_server_known(ssh, allow_new=True, cb=hostkey_gate)
-            ssh_userauth_privatekey_file(ssh, None, key_filepath, None)
+            ssh.is_server_known(allow_new=True, cb=hostkey_gate)
+            ssh.userauth_privatekey_file(None, key_filepath, None)
 
             with SftpSession(ssh) as sftp:
                 with SftpFile(sftp, 'test_doc_rfc1958.txt') as sf:
