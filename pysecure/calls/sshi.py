@@ -100,3 +100,23 @@ c_ssh_forward_accept = libssh.ssh_forward_accept
 c_ssh_forward_accept.argtypes = [c_ssh_session, c_int]
 c_ssh_forward_accept.restype = c_ssh_channel
 
+# int ssh_userauth_publickey(ssh_session session, const char *username, const ssh_key privkey)
+c_ssh_userauth_publickey = libssh.ssh_userauth_publickey
+c_ssh_userauth_publickey.argtypes = [c_ssh_session, c_char_p, c_ssh_key]
+c_ssh_userauth_publickey.restype = None
+
+# int ssh_key_import_private(ssh_key key, ssh_session session, const char *filename, const char *passphrase)
+c_ssh_key_import_private = libssh.ssh_key_import_private
+c_ssh_key_import_private.argtypes = [c_ssh_key, c_ssh_session, c_char_p, c_char_p]
+c_ssh_key_import_private.restype = c_int
+
+# void ssh_key_clean(ssh_key key)
+c_ssh_key_clean = libssh.ssh_key_clean
+c_ssh_key_clean.argtypes = [c_ssh_key]
+c_ssh_key_clean.restype = None
+
+# void ssh_key_free (ssh_key key)
+c_ssh_key_free = libssh.ssh_key_free
+c_ssh_key_free.argtypes = [c_ssh_key]
+c_ssh_key_free.restype = None
+

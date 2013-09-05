@@ -27,7 +27,10 @@ from pysecure.calls.sshi import c_free, c_ssh_userauth_privatekey_file, \
                                 c_ssh_new, c_ssh_options_set, c_ssh_init, \
                                 c_ssh_finalize, c_ssh_userauth_password, \
                                 c_ssh_get_error, c_ssh_forward_listen, \
-                                c_ssh_forward_accept
+                                c_ssh_forward_accept, \
+                                c_ssh_userauth_publickey, \
+                                c_ssh_key_import_private, c_ssh_key_clean, \
+                                c_ssh_key_free
 
 from pysecure.adapters.channela import SshChannel
 
@@ -248,6 +251,12 @@ def _ssh_forward_accept(ssh_session, timeout_ms):
         raise SshTimeoutException()
 
     return ssh_channel
+
+# TODO: Implement these.
+#c_ssh_userauth_publickey
+#c_ssh_key_import_private
+#c_ssh_key_clean
+#c_ssh_key_free
 
 
 class SshSystem(object):
