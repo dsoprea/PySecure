@@ -68,6 +68,7 @@ c_timeval = CTimeval
 # for the vast number of structs.
 
 c_ssh_session = c_void_p #POINTER(CSshSessionStruct)
+c_ssh_channel = c_void_p
 c_sftp_session = c_void_p
 c_sftp_attributes = _CSftpAttributes
 c_sftp_dir = c_void_p

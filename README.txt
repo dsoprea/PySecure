@@ -2,7 +2,8 @@ Introduction
 ============
 
 This is a library that provides SSH and SFTP functionality from within Python,
-using "libssh".
+using "libssh". Although libssh2 was considered, it appears that its SFTP 
+functionality is slower (1).
 
 This solution exists as an alternative to Paramiko. I love Paramiko, but as 
 "libssh" is very complete and actively-maintained, it has a greater breadth of 
@@ -11,6 +12,9 @@ It is also written in C and battle-hardened, therefore it's faster.
 
 This project is in active development. The documentation will be completed as
 primary development approaches completion.
+
+
+(1) http://daniel.haxx.se/blog/2010/12/05/re-evaluating-the-criticism/
 
 
 Status
@@ -58,25 +62,16 @@ Getting Started
 (Finish this.)
 
 
-Examples
-========
+Common Setup Code for Examples
+==============================
 
-File resources are file-like objects that are similar to standard file objects, 
-and allow writes. Calls will have traditional syntax, as identified here: 
-    
-    http://docs.python.org/2/library/stdtypes.html#file-objects
-
-These are examples of how to list a directory and read files:
-
-    import logging
+In the examples below, it is assumed that the following code exists above it:
 
     from pysecure.adapters.ssha import ssh_is_server_known, \
                                        ssh_write_knownhost, \
                                        ssh_userauth_privatekey_file, \
                                        SshSession, SshConnect, SshSystem, \
                                        PublicKeyHash
-
-    from pysecure.adapters.sftpa import SftpSession, SftpFile
 
     user = 'user'
     host = 'remote_hostname'
@@ -97,34 +92,74 @@ These are examples of how to list a directory and read files:
                 ssh_is_server_known(ssh, allow_new=True, cb=hostkey_gate)
                 ssh_userauth_privatekey_file(ssh, None, key_filepath, None)
 
-                # List entries in home directory.
 
-                print("Name                         Size Perms    Owner\tGroup\n")
-                for attributes in sftp.listdir('.'):
-                    print("%-40s %10d %.8o %s(%d)\t%s(%d)" % 
-                          (attributes.name[0:40], attributes.size, 
-                           attributes.permissions, attributes.owner, 
-                           attributes.uid, attributes.group,
-                           attributes.gid))
+SFTP Examples
+=============
 
-                # To read a text file, line by line.
+File resources are file-like objects that are similar to standard file objects, 
+and allow writes. Calls will have traditional syntax, as identified here: 
+    
+    http://docs.python.org/2/library/stdtypes.html#file-objects
 
-                with SftpSession(ssh) as sftp:
-                    with SftpFile(sftp, 'text_file.txt') as sf:
-                        i = 0
-                        for data in sf:
-                            stdout.write("> " + data)
+These are examples of how to list a directory and read files:
 
-                            if i >= 30:
-                                break
+    from pysecure.adapters.sftpa import SftpSession, SftpFile
 
-                            i += 1
+    with SftpSession(ssh) as sftp:
+        # List entries in home directory.
 
-                # To read a complete file (binary friendly). It could also be
-                # ready one chunk at a time.
+        print("Name                         Size Perms    Owner\tGroup\n")
+        for attributes in sftp.listdir('.'):
+            print("%-40s %10d %.8o %s(%d)\t%s(%d)" % 
+                  (attributes.name[0:40], attributes.size, 
+                   attributes.permissions, attributes.owner, 
+                   attributes.uid, attributes.group,
+                   attributes.gid))
 
-                with SftpFile(sftp, 'binary_file.dat') as sf:
-                    buffer_ = sf.read()
+        # To read a text file, line by line.
 
-                    print("Read (%d) bytes." % (len(buffer_)))
+        with SftpFile(sftp, 'text_file.txt') as sf:
+            i = 0
+            for data in sf:
+                stdout.write("> " + data)
+
+
+
+                if i >= 30:
+                    break
+
+                i += 1
+
+        # To read a complete file (binary friendly). It could also be
+        # ready one chunk at a time.
+
+        with SftpFile(sftp, 'binary_file.dat') as sf:
+            buffer_ = sf.read()
+
+            print("Read (%d) bytes." % (len(buffer_)))
+
+
+Port-Forwarding Examples
+========================
+
+    from pysecure.adapters.channela import SshChannel
+
+    host_source = 'localhost'
+    port_local = 1111
+    host_remote = 'localhost'
+    port_remote = 80
+
+    data = "GET / HTTP/1.1\nHost: localhost\n\n"
+
+    with SshChannel(ssh) as sc:
+        # The following command activates forwarding, but does not bind any
+        # ports. Although a "port_local" parameter is expected, this is 
+        # allegedly for little more than logging. Binding is left as a concern
+        # for the implementing developer.
+        sc.open_forward(host_remote, port_remote, host_source, port_local)
+
+        sc.write(data)
+
+        received = sc.read(1024)
+        print("Received:\n\n%s" % (received))
 

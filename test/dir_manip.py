@@ -10,7 +10,7 @@ from pysecure.adapters.ssha import ssh_is_server_known, \
                                    ssh_userauth_privatekey_file, SshSession, \
                                    SshConnect, SshSystem, PublicKeyHash
 
-from pysecure.adapters.channela import SshChannel
+from pysecure.adapters.sftpa import SftpSession, SftpFile
 
 user = 'dustin'
 host = 'localhost'
@@ -31,21 +31,7 @@ with SshSystem():
             ssh_is_server_known(ssh, allow_new=True, cb=hostkey_gate)
             ssh_userauth_privatekey_file(ssh, None, key_filepath, None)
 
-            host_remote = 'localhost'
-            port_remote = 80
-            host_source = 'localhost'
-            port_local = 1111
-            data = "GET / HTTP/1.1\nHost: localhost\n\n"
-
-            with SshChannel(ssh) as sc:
-                sc.open_forward(host_remote, 
-                                port_remote, 
-                                host_source, 
-                                port_local)
-
-                sc.write(data)
-
-                received = sc.read(1024)
-
-                print("Received:\n\n%s" % (received))
+            with SftpSession(ssh) as sftp:
+                sftp.mkdir("xyz")
+                sftp.rmdir("xyz")
 
