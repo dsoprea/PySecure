@@ -120,8 +120,6 @@ These are examples of how to list a directory and read files:
             for data in sf:
                 stdout.write("> " + data)
 
-
-
                 if i >= 30:
                     break
 

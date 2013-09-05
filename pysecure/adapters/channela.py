@@ -51,9 +51,7 @@ def _ssh_channel_write(ssh_channel, data):
                        "written data." % (data_len, sent_bytes))
 
 def _ssh_channel_read(ssh_channel, count):
-    """Do a read on a channel. Empty data might be returned in non-blocking 
-    mode, hence the "allow_empty" parameter.
-    """
+    """Do a read on a channel."""
 
     buffer_ = create_string_buffer(count)
     while 1:
