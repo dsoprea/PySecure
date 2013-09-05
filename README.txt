@@ -10,8 +10,7 @@ This solution exists as an alternative to Paramiko. I love Paramiko, but as
 functionality, such as support for elliptic-curve encryption (recently added). 
 It is also written in C and battle-hardened, therefore it's faster.
 
-This project is in active development. The documentation will be completed as
-primary development approaches completion.
+This project is in active development.
 
 
 (1) http://daniel.haxx.se/blog/2010/12/05/re-evaluating-the-criticism/
@@ -20,46 +19,16 @@ primary development approaches completion.
 Status
 ======
 
-> Shared-object interface functions (partially tested).
-
-> Shared-object adapter functions (partially tested).
-  > These wrap the interface functions, do parameter conversions, and translate 
-    return values to exceptions.
-
-X Wrote classes where necessary to ensure garbage collection of allocated 
-  resources.
-  X PublicKeyHash
-  X EntryAttributes
-
-X Wrote "with" support for all resources that have open/close semantics.
-  X SshSystem
-  X SshSession
-  X SshConnect
-  X SftpSession
-  X SftpDirectory
-  X SftpFile
-
-X Complete proof of concept:
-  X 1) Connect SSH
-  X 2) Authenticate host.
-  X 3) Authenticate user.
-  X 4) Activate SFTP.
-  X 5) List entries in default path.
-  X 6) Display file-entry information for each.
-  
-> Finish testing remaining SFTP calls/adapters.
+X SFTP functionality.
+X Port forwarding.
+X Reverse port forwarding.
+  Remote execution.
 
 
 Dependencies
 ============
 
 > libssh
-
-
-Getting Started
-===============
-
-(Finish this.)
 
 
 Common Setup Code for Examples
@@ -73,7 +42,7 @@ In the examples below, it is assumed that the following code exists above it:
     user = 'user'
     host = 'remote_hostname'
     key_filepath = '/home/user/.ssh/id_dsa'
-    verbosity = 1
+    verbosity = 0
 
     with SshSystem():
         with SshSession(user=user, host=host, verbosity=verbosity) as ssh:
@@ -93,12 +62,12 @@ In the examples below, it is assumed that the following code exists above it:
 SFTP Examples
 =============
 
-File resources are file-like objects that are similar to standard file objects, 
-and allow writes. Calls will have traditional syntax, as identified here: 
+File resources are file-like objects that are similar to standard file objects. 
+Calls will have traditional methods, as identified here: 
     
     http://docs.python.org/2/library/stdtypes.html#file-objects
 
-These are examples of how to list a directory and read files:
+List a directory:
 
     from pysecure.adapters.sftpa import SftpSession, SftpFile
 
@@ -112,6 +81,8 @@ These are examples of how to list a directory and read files:
                    attributes.permissions, attributes.owner, 
                    attributes.uid, attributes.group,
                    attributes.gid))
+
+ Read a file:
 
         # To read a text file, line by line.
 
@@ -180,4 +151,3 @@ Reverse Forwarding:
                 response = "Received."
 
                 sc.write(response)
-
