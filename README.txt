@@ -53,7 +53,7 @@ X Complete proof of concept:
 Dependencies
 ============
 
-> libssl
+> libssh
 
 
 Getting Started
