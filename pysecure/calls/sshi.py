@@ -90,3 +90,13 @@ c_ssh_finalize = libssh.ssh_finalize
 c_ssh_finalize.argtypes = []
 c_ssh_finalize.restype = c_int
 
+# int ssh_forward_listen(ssh_session session, const char *address, int port, int *bound_port)
+c_ssh_forward_listen = libssh.ssh_forward_listen
+c_ssh_forward_listen.argtypes = [c_ssh_session, c_char_p, c_int, POINTER(c_int)]
+c_ssh_forward_listen.restype = c_int
+
+# ssh_channel ssh_forward_accept(ssh_session session, int timeout_ms)
+c_ssh_forward_accept = libssh.ssh_forward_accept
+c_ssh_forward_accept.argtypes = [c_ssh_session, c_int]
+c_ssh_forward_accept.restype = c_ssh_channel
+

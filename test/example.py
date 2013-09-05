@@ -5,12 +5,11 @@ import logging
 from pysecure import log_config
 
 from pysecure.constants.sftp import O_WRONLY, O_RDWR, O_CREAT
-from pysecure.adapters.ssha import ssh_is_server_known, \
-                                   ssh_write_knownhost, \
-                                   ssh_userauth_privatekey_file, SshSession, \
-                                   SshConnect, SshSystem, PublicKeyHash
-
+from pysecure.adapters.ssha import SshSession, SshConnect, SshSystem, \
+                                   PublicKeyHash
 from pysecure.adapters.channela import SshChannel
+from pysecure.exceptions import SshNoDataReceivedException, \
+                                SshNonblockingTryAgainException
 
 user = 'dustin'
 host = 'localhost'
@@ -28,24 +27,77 @@ with SshSystem():
                 
                 return would_accept
 
-            ssh_is_server_known(ssh, allow_new=True, cb=hostkey_gate)
-            ssh_userauth_privatekey_file(ssh, None, key_filepath, None)
+            ssh.is_server_known(allow_new=True, cb=hostkey_gate)
+            ssh.userauth_privatekey_file(None, key_filepath, None)
 
-            host_remote = 'localhost'
-            port_remote = 80
-            host_source = 'localhost'
-            port_local = 1111
-            data = "GET / HTTP/1.1\nHost: localhost\n\n"
+            def build_body(status_code, status_string, content):
+                replacements = { 'scode': status_code,
+                                 'sstring': status_string,
+                                 'length': len(content),
+                                 'content': content }
 
-            with SshChannel(ssh) as sc:
-                sc.open_forward(host_remote, 
-                                port_remote, 
-                                host_source, 
-                                port_local)
+                return """HTTP/1.1 %(scode)d %(sstring)s
+Content-Type: text/html
+Content-Length: %(length)d
 
-                sc.write(data)
+%(content)s""" % replacements
 
-                received = sc.read(1024)
+            response_helloworld = build_body(200, 'OK', """<html>
+  <head>
+    <title>Hello, World!</title>
+  </head>
+  <body>
+    <h1>Hello, World!</h1>
+  </body>
+</html>
+""")
 
-                print("Received:\n\n%s" % (received))
+            response_notfound = build_body(404, 'Not found', """<html>
+  <head>
+    <title>Not Found</title>
+  </head>
+  <body>
+    <h1>Resource not found.</h1>
+  </body>
+</html>
+""")
+
+            response_error = build_body(500, 'Server error', """<html>
+  <head>
+    <title>Server Error</title>
+  </head>
+  <body>
+    <h1>There was a server failure.</h1>
+  </body>
+</html>
+""")
+
+            server_address = None
+            server_port = 8080
+            accept_timeout_ms = 60000
+
+            port = ssh.forward_listen(server_address, server_port)
+            with ssh.forward_accept(accept_timeout_ms) as sc:
+                while 1:
+                    buffer_ = sc.read(2048)
+                    if buffer_ == '':
+                        continue
+
+                    try:
+                        nl_index = buffer_.index('\n')
+                    except ValueError:
+                        print("Error with:\n%s" % (len(buffer_)))
+                        payload = response_error
+                    else:
+                        request_line = buffer_[:nl_index]
+
+                        if request_line[:6] == 'GET / ':
+                            print("Responding: %s" % (request_line))
+                            payload = response_helloworld
+                        else:
+                            print("Ignoring: %s" % (request_line))
+                            payload = response_notfound
+
+                    sc.write(payload)
+                    print("Sent answer.")
 

@@ -16,6 +16,12 @@ class SshLoginError(SshError):
 class SshHostKeyException(SshException):
     pass
 
-class SshNonblockingTryAgain(SshException):
+class SshNonblockingTryAgainException(SshException):
+    pass
+
+class SshNoDataReceivedException(SshException):
+    pass
+
+class SshTimeoutException(SshException):
     pass
 

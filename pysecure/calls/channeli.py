@@ -28,3 +28,13 @@ c_ssh_channel_read = libssh.ssh_channel_read
 c_ssh_channel_read.argtypes = [c_ssh_channel, c_void_p, c_uint32, c_int]
 c_ssh_channel_read.restype = c_int
 
+# int ssh_channel_send_eof(ssh_channel channel)
+c_ssh_channel_send_eof = libssh.ssh_channel_send_eof
+c_ssh_channel_send_eof.argtypes = [c_ssh_channel]
+c_ssh_channel_send_eof.restype = c_int
+
+# int ssh_channel_is_open(ssh_channel channel)
+c_ssh_channel_is_open = libssh.ssh_channel_is_open
+c_ssh_channel_is_open.argtypes = [c_ssh_channel]
+c_ssh_channel_is_open.restype = c_int
+

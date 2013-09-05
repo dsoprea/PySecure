@@ -4,7 +4,9 @@ from ctypes import c_char_p, c_void_p, c_ubyte, byref, POINTER, cast, c_uint, \
                    c_int
 
 from pysecure.exceptions import SshError, SshLoginError, SshHostKeyException, \
-                                SshNonblockingTryAgain
+                                SshNonblockingTryAgainException, \
+                                SshTimeoutException
+
 from pysecure.constants.ssh import SSH_OK, SSH_ERROR, SSH_AGAIN, \
                                    \
                                    SSH_AUTH_ERROR, SSH_AUTH_DENIED, \
@@ -24,7 +26,12 @@ from pysecure.calls.sshi import c_free, c_ssh_userauth_privatekey_file, \
                                 c_ssh_print_hexa, c_ssh_get_hexa, c_ssh_free, \
                                 c_ssh_new, c_ssh_options_set, c_ssh_init, \
                                 c_ssh_finalize, c_ssh_userauth_password, \
-                                c_ssh_get_error
+                                c_ssh_get_error, c_ssh_forward_listen, \
+                                c_ssh_forward_accept
+
+from pysecure.adapters.channela import SshChannel
+
+# TODO: All errors should put the response from ssh_get_error in the message.
 
 def _ssh_options_set_string(ssh_session, type_, value):
     value_charp = c_char_p(value)
@@ -86,14 +93,14 @@ def _ssh_free(ssh_session):
 def _ssh_connect(ssh_session):
     result = c_ssh_connect(ssh_session)
     if result == SSH_AGAIN:
-        raise SshNonblockingTryAgain()
+        raise SshNonblockingTryAgainException()
     elif result != SSH_OK:
         raise SshError("Connect failed.")
 
 def _ssh_disconnect(ssh_session):
     c_ssh_disconnect(ssh_session)
 
-def ssh_is_server_known(ssh_session, allow_new=False, cb=None):
+def _ssh_is_server_known(ssh_session, allow_new=False, cb=None):
     result = c_ssh_is_server_known(ssh_session)
 
     if result == SSH_SERVER_KNOWN_CHANGED:
@@ -161,7 +168,7 @@ def _ssh_get_pubkey_hash(ssh_session):
 
     return (hash_, hlen)
 
-def ssh_write_knownhost(ssh_session):
+def _ssh_write_knownhost(ssh_session):
     logging.debug("Updating known-hosts file.")
 
     result = c_ssh_write_knownhost(ssh_session)
@@ -180,7 +187,7 @@ def _check_auth_response(result):
     elif result != SSH_AUTH_SUCCESS:
         raise SshLoginError("Login failed (unexpected error).")
 
-def ssh_userauth_password(ssh_session, username, password):
+def _ssh_userauth_password(ssh_session, username, password):
     logging.debug("Authenticating with a password for user [%s]." % (username))
     
     result = c_ssh_userauth_password(ssh_session, \
@@ -189,8 +196,8 @@ def ssh_userauth_password(ssh_session, username, password):
 
     _check_auth_response(result)
 
-def ssh_userauth_privatekey_file(ssh_session, username, filepath, 
-                                 passphrase=None):
+def _ssh_userauth_privatekey_file(ssh_session, username, filepath, 
+                                  passphrase=None):
 
     logging.debug("Authenticating with a private-key for user [%s]." % 
                   (username))
@@ -214,6 +221,34 @@ def _ssh_finalize():
     if result < 0:
         raise SshError("Could not finalize SSH.")
 
+def _ssh_forward_listen(ssh_session, address, port):
+    bound_port = c_int()
+    result = c_ssh_forward_listen(ssh_session, 
+                                  c_char_p(address), 
+                                  port, 
+                                  byref(bound_port))
+
+    if result == SSH_AGAIN:
+        raise SshNonblockingTryAgainException()
+    elif result != SSH_OK:
+        raise SshError("Forward-listen failed.")
+
+    return bound_port.value
+
+def _ssh_forward_accept(ssh_session, timeout_ms):
+    """Waiting for an incoming connection from a reverse forwarded port. Note
+    that this results in a kernel block until a connection is received.
+    """
+
+    # BUG: Due to a bug in libssh, the timeout will be doubled.
+    timeout_ms /= 2
+
+    ssh_channel = c_ssh_forward_accept(ssh_session, c_int(timeout_ms))
+    if ssh_channel is None:
+        raise SshTimeoutException()
+
+    return ssh_channel
+
 
 class SshSystem(object):
     def __enter__(self):
@@ -228,7 +263,7 @@ class SshSession(object):
         self.__options = options
 
     def __enter__(self):
-        self.__ssh_session = _ssh_new()
+        self.__ssh_session_int = _ssh_new()
 
         for k, v in self.__options.items():
             (option_id, type_) = SSH_OPTIONS[k]
@@ -250,23 +285,51 @@ class SshSession(object):
             logging.debug("Setting option [%s] (%d) to [%s]." % 
                           (k, option_id, v))
 
-            option_setter(self.__ssh_session, option_id, v)
+            option_setter(self.__ssh_session_int, option_id, v)
 
-        return self.__ssh_session
+        return self
 
     def __exit__(self, e_type, e_value, e_tb):
-        _ssh_free(self.__ssh_session)
+        _ssh_free(self.__ssh_session_int)
+
+    def forward_listen(self, address, port):
+        return _ssh_forward_listen(self.__ssh_session_int, address, port)
+
+    def forward_accept(self, timeout_ms):
+        ssh_channel_int = _ssh_forward_accept(self.__ssh_session_int, \
+                                              timeout_ms)
+
+        return SshChannel(self, ssh_channel_int, eof_on_close=True)
+
+    def is_server_known(self, allow_new=False, cb=None):
+        return _ssh_is_server_known(self.__ssh_session_int, allow_new, cb)
+
+    def write_knownhost(self):
+        return _ssh_write_knownhost(self.__ssh_session_int)
+
+    def userauth_password(self, username, password):
+        return _ssh_userauth_password(self.__ssh_session_int, username, password)
+
+    def userauth_privatekey_file(self, username, filepath, passphrase=None):
+        return _ssh_userauth_privatekey_file(self.__ssh_session_int, 
+                                             username, 
+                                             filepath, 
+                                             passphrase)
+
+    @property
+    def session_id(self):
+        return self.__ssh_session_int
 
 
 class SshConnect(object):
     def __init__(self, ssh_session):
-        self.__ssh_session = ssh_session
+        self.__ssh_session_int = ssh_session.session_id
 
     def __enter__(self):
-        _ssh_connect(self.__ssh_session)
+        _ssh_connect(self.__ssh_session_int)
 
     def __exit__(self, e_type, e_value, e_tb):
-        _ssh_disconnect(self.__ssh_session)
+        _ssh_disconnect(self.__ssh_session_int)
 
 
 class _PublicKeyHashString(object):
@@ -283,8 +346,8 @@ class _PublicKeyHashString(object):
 
 
 class PublicKeyHash(object):
-    def __init__(self, ssh_session):
-        self.__hasht = _ssh_get_pubkey_hash(ssh_session)
+    def __init__(self, ssh_session_int):
+        self.__hasht = _ssh_get_pubkey_hash(ssh_session_int)
         
     def __del__(self):
         c_free(self.__hasht[0])

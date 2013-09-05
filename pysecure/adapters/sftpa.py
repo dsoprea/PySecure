@@ -308,66 +308,66 @@ def _sftp_listdir(sftp_session, path):
 
 
 class SftpSession(object):
-    def __init__(self, ssh_session):
-        self.__ssh_session = ssh_session
+    def __init__(self, ssh_session_int):
+        self.__ssh_session_int = ssh_session.session_id
 
     def __enter__(self):
-        self.__sftp_session = _sftp_new(self.__ssh_session)
-        _sftp_init(self.__sftp_session)
+        self.__sftp_session_int = _sftp_new(self.__ssh_session_int)
+        _sftp_init(self.__sftp_session_int)
 
         return self
 
     def __exit__(self, e_type, e_value, e_tb):
-        _sftp_free(self.__sftp_session)
+        _sftp_free(self.__sftp_session_int)
 
     def stat(self, file_path):
-        return _sftp_stat(self.__sftp_session, file_path)
+        return _sftp_stat(self.__sftp_session_int, file_path)
 
     def rename(self, filepath_old, filepath_new):
-        return _sftp_rename(self.__sftp_session, filepath_old, filepath_new)
+        return _sftp_rename(self.__sftp_session_int, filepath_old, filepath_new)
 
     def chmod(self, file_path, mode):
-        return _sftp_chmod(self.__sftp_session, file_path, mode)
+        return _sftp_chmod(self.__sftp_session_int, file_path, mode)
 
     def chown(self, file_path, uid, gid):
-        return _sftp_chown(self.__sftp_session, file_path, uid, gid)
+        return _sftp_chown(self.__sftp_session_int, file_path, uid, gid)
 
     def mkdir(self, path, mode=0o755):
-        return _sftp_mkdir(self.__sftp_session, path, mode)
+        return _sftp_mkdir(self.__sftp_session_int, path, mode)
 
     def rmdir(self, path):
-        return _sftp_rmdir(self.__sftp_session, path)
+        return _sftp_rmdir(self.__sftp_session_int, path)
 
     def lstat(self, file_path):
-        return _sftp_lstat(self.__sftp_session, file_path)
+        return _sftp_lstat(self.__sftp_session_int, file_path)
 
     def unlink(self, file_path):
-        return _sftp_unlink(self.__sftp_session, file_path)
+        return _sftp_unlink(self.__sftp_session_int, file_path)
 
     def readlink(self, file_path):
-        return _sftp_readlink(self.__sftp_session, file_path)
+        return _sftp_readlink(self.__sftp_session_int, file_path)
 
     def symlink(self, to, from_):
-        return _sftp_symlink(self.__sftp_session, to, from_)
+        return _sftp_symlink(self.__sftp_session_int, to, from_)
 
     def setstat(self, file_path, entry_attributes):
-        return _sftp_setstat(self.__sftp_session, file_path, entry_attributes)
+        return _sftp_setstat(self.__sftp_session_int, file_path, entry_attributes)
 
     def listdir(self, path):
-        return _sftp_listdir(self.__sftp_session, path)
+        return _sftp_listdir(self.__sftp_session_int, path)
 
     @property
     def session_id(self):
-        return self.__sftp_session
+        return self.__sftp_session_int
 
 
 class SftpDirectory(object):
-    def __init__(self, sftp_session, path):
-        self.__sftp_session = sftp_session
+    def __init__(self, sftp_session_int, path):
+        self.__sftp_session_int = sftp_session_int
         self.__path = path
 
     def __enter__(self):
-        self.__sd = _sftp_opendir(self.__sftp_session, self.__path)
+        self.__sd = _sftp_opendir(self.__sftp_session_int, self.__path)
         return self.__sd
 
     def __exit__(self, e_type, e_value, e_tb):
@@ -380,11 +380,7 @@ class SftpFile(object):
 
         at_im = self.__at_om_to_im(access_type_om)
 
-        sftp_session_id = sftp_session.session_id \
-                            if issubclass(sftp_session.__class__, SftpSession) \
-                            else sftp_session
-
-        self.__sftp_session = sftp_session_id
+        self.__sftp_session = sftp_session.session_id
         self.__filepath = filepath
         self.__access_type = at_im
         self.__create_mode = create_mode
