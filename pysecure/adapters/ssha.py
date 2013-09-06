@@ -28,18 +28,16 @@ from pysecure.calls.sshi import c_free, c_ssh_userauth_privatekey_file, \
                                 c_ssh_finalize, c_ssh_userauth_password, \
                                 c_ssh_get_error, c_ssh_forward_listen, \
                                 c_ssh_forward_accept, c_ssh_key_new, \
-                                c_ssh_userauth_publickey, \
-                                c_ssh_key_import_private, c_ssh_key_clean, \
-                                c_ssh_key_free
+                                c_ssh_userauth_publickey, c_ssh_key_free
 
 from pysecure.adapters.channela import SshChannel
 
 # TODO: All errors should put the response from ssh_get_error in the message.
 
-def _ssh_options_set_string(ssh_session, type_, value):
+def _ssh_options_set_string(ssh_session_int, type_, value):
     value_charp = c_char_p(value)
 
-    result = c_ssh_options_set(ssh_session, 
+    result = c_ssh_options_set(ssh_session_int, 
                                c_int(type_), 
                                cast(value_charp, c_void_p))
 
@@ -47,9 +45,9 @@ def _ssh_options_set_string(ssh_session, type_, value):
         raise SshError("Could not set STRING option (%d) to [%s]." % 
                        (type_, value))
 
-def _ssh_options_set_uint(ssh_session, type_, value):
+def _ssh_options_set_uint(ssh_session_int, type_, value):
     value_uint = c_uint(value)
-    result = c_ssh_options_set(ssh_session, 
+    result = c_ssh_options_set(ssh_session_int, 
                                c_int(type_), 
                                cast(byref(value_uint), c_void_p))
 
@@ -57,9 +55,9 @@ def _ssh_options_set_uint(ssh_session, type_, value):
         raise SshError("Could not set UINT option (%d) to (%d)." % 
                        (type_, value))
 
-def _ssh_options_set_int(ssh_session, type_, value):
+def _ssh_options_set_int(ssh_session_int, type_, value):
     value_int = c_int(value)
-    result = c_ssh_options_set(ssh_session, 
+    result = c_ssh_options_set(ssh_session_int, 
                                c_int(type_), 
                                cast(POINTER(value_int), c_void_p))
 
@@ -67,9 +65,9 @@ def _ssh_options_set_int(ssh_session, type_, value):
         raise SshError("Could not set INT option (%d) to (%d)." % 
                        (type_, value))
 
-def _ssh_options_set_long(ssh_session, type_, value):
+def _ssh_options_set_long(ssh_session_int, type_, value):
     value_long = c_long(value)
-    result = c_ssh_options_set(ssh_session, 
+    result = c_ssh_options_set(ssh_session_int, 
                                c_int(type_), 
                                cast(POINTER(value_long), c_void_p))
 
@@ -77,34 +75,50 @@ def _ssh_options_set_long(ssh_session, type_, value):
         raise SshError("Could not set LONG option (%d) to (%d)." % 
                        (type_, value))
 
-def ssh_get_error_code(ssh_session):
-    return c_ssh_get_error_code(ssh_session)
+def ssh_get_error_code(ssh_session_int):
+    return c_ssh_get_error_code(ssh_session_int)
 
-def ssh_get_error(ssh_session):
-    return c_ssh_get_error(ssh_session)
+def ssh_get_error(ssh_session_int):
+    return c_ssh_get_error(ssh_session_int)
 
 def _ssh_new():
-    ssh_session = c_ssh_new()
-    if ssh_session is None:
+    ssh_session_int = c_ssh_new()
+    if ssh_session_int is None:
         raise SshError("Could not create session.")
 
-    return ssh_session
+    return ssh_session_int
 
-def _ssh_free(ssh_session):
-    c_ssh_free(ssh_session)
+def _ssh_free(ssh_session_int):
+    c_ssh_free(ssh_session_int)
 
-def _ssh_connect(ssh_session):
-    result = c_ssh_connect(ssh_session)
+def _ssh_connect(ssh_session_int):
+    result = c_ssh_connect(ssh_session_int)
     if result == SSH_AGAIN:
         raise SshNonblockingTryAgainException()
     elif result != SSH_OK:
         raise SshError("Connect failed.")
 
-def _ssh_disconnect(ssh_session):
-    c_ssh_disconnect(ssh_session)
+def _ssh_disconnect(ssh_session_int):
+    c_ssh_disconnect(ssh_session_int)
 
-def _ssh_is_server_known(ssh_session, allow_new=False, cb=None):
-    result = c_ssh_is_server_known(ssh_session)
+def _ssh_is_server_known(ssh_session_int, allow_new=False, cb=None):
+    result = c_ssh_is_server_known(ssh_session_int)
+
+    if result == SSH_SERVER_KNOWN_OK:
+        if cb is not None:
+            hk = repr(PublicKeyHash(ssh_session_int))
+            allow_auth = cb(hk, True)
+            
+            logging.debug("Host-key callback returned [%s] when a host-key has "
+                          "already been accepted." % (allow_auth))
+
+            if allow_auth is False:
+                raise SshHostKeyException("Existing host-key was failed by "
+                                          "callback.")
+
+        logging.debug("Server host-key authenticated.")
+    
+        return
 
     if result == SSH_SERVER_KNOWN_CHANGED:
         raise SshHostKeyException("Host key: Server has changed.")
@@ -122,7 +136,7 @@ def _ssh_is_server_known(ssh_session, allow_new=False, cb=None):
                                       "Our policy is to deny new hosts.")
 
         if cb is not None:
-            hk = repr(PublicKeyHash(ssh_session))
+            hk = repr(PublicKeyHash(ssh_session_int))
             allow_auth = cb(hk, allow_new)
             
             logging.debug("Host-key callback returned [%s] when no host-key "
@@ -133,25 +147,11 @@ def _ssh_is_server_known(ssh_session, allow_new=False, cb=None):
                                           "callback.")
 
         logging.warn("Recording host-key for server.")
-        c_ssh_write_knownhost(ssh_session)
-
+        c_ssh_write_knownhost(ssh_session_int)
     elif result == SSH_SERVER_ERROR:
         raise SshHostKeyException("Host key: Server error.")
-    elif result != SSH_SERVER_KNOWN_OK:
-        raise SshHostKeyException("Host key: Failed (unexpected error).")
     else:
-        if cb is not None:
-            hk = repr(PublicKeyHash(ssh_session))
-            allow_auth = cb(hk, True)
-            
-            logging.debug("Host-key callback returned [%s] when a host-key has "
-                          "already been accepted." % (allow_auth))
-
-            if allow_auth is False:
-                raise SshHostKeyException("Existing host-key was failed by "
-                                          "callback.")
-
-        logging.debug("Server host-key authenticated.")
+        raise SshHostKeyException("Host key: Failed (unexpected error).")
 
 def _ssh_print_hexa(title, hash_, hlen):
     c_ssh_print_hexa(c_char_p(title), hash_, hlen)
@@ -163,18 +163,18 @@ def _ssh_get_hexa(hash_, hlen):
 
     return hexa
 
-def _ssh_get_pubkey_hash(ssh_session):
+def _ssh_get_pubkey_hash(ssh_session_int):
     hash_ = POINTER(c_ubyte)()
-    hlen = c_ssh_get_pubkey_hash(ssh_session, byref(hash_))
+    hlen = c_ssh_get_pubkey_hash(ssh_session_int, byref(hash_))
     if hlen < 0:
         raise SshError("Could not build public-key hash.")
 
     return (hash_, hlen)
 
-def _ssh_write_knownhost(ssh_session):
+def _ssh_write_knownhost(ssh_session_int):
     logging.debug("Updating known-hosts file.")
 
-    result = c_ssh_write_knownhost(ssh_session)
+    result = c_ssh_write_knownhost(ssh_session_int)
     if result == SSH_ERROR:
         raise SshError("Could not update known-hosts file.")
 
@@ -190,22 +190,22 @@ def _check_auth_response(result):
     elif result != SSH_AUTH_SUCCESS:
         raise SshLoginError("Login failed (unexpected error).")
 
-def _ssh_userauth_password(ssh_session, username, password):
+def _ssh_userauth_password(ssh_session_int, username, password):
     logging.debug("Authenticating with a password for user [%s]." % (username))
     
-    result = c_ssh_userauth_password(ssh_session, \
+    result = c_ssh_userauth_password(ssh_session_int, \
                                      c_char_p(username), \
                                      c_char_p(password))
 
     _check_auth_response(result)
 
-def _ssh_userauth_privatekey_file(ssh_session, username, filepath, 
+def _ssh_userauth_privatekey_file(ssh_session_int, username, filepath, 
                                   passphrase=None):
 
     logging.debug("Authenticating with a private-key for user [%s]." % 
                   (username))
 
-    result = c_ssh_userauth_privatekey_file(ssh_session, \
+    result = c_ssh_userauth_privatekey_file(ssh_session_int, \
                                             c_char_p(username), \
                                             c_char_p(filepath), \
                                             c_char_p(passphrase))
@@ -224,9 +224,9 @@ def _ssh_finalize():
     if result < 0:
         raise SshError("Could not finalize SSH.")
 
-def _ssh_forward_listen(ssh_session, address, port):
+def _ssh_forward_listen(ssh_session_int, address, port):
     bound_port = c_int()
-    result = c_ssh_forward_listen(ssh_session, 
+    result = c_ssh_forward_listen(ssh_session_int, 
                                   c_char_p(address), 
                                   port, 
                                   byref(bound_port))
@@ -238,7 +238,7 @@ def _ssh_forward_listen(ssh_session, address, port):
 
     return bound_port.value
 
-def _ssh_forward_accept(ssh_session, timeout_ms):
+def _ssh_forward_accept(ssh_session_int, timeout_ms):
     """Waiting for an incoming connection from a reverse forwarded port. Note
     that this results in a kernel block until a connection is received.
     """
@@ -246,7 +246,7 @@ def _ssh_forward_accept(ssh_session, timeout_ms):
     # BUG: Due to a bug in libssh, the timeout will be doubled.
     timeout_ms /= 2
 
-    ssh_channel = c_ssh_forward_accept(ssh_session, c_int(timeout_ms))
+    ssh_channel = c_ssh_forward_accept(ssh_session_int, c_int(timeout_ms))
     if ssh_channel is None:
         raise SshTimeoutException()
 
@@ -257,17 +257,17 @@ def _ssh_key_new():
     if result is None:
         raise SshError("Could not create empty key.")
 
-def ssh_userauth_publickey(ssh_session, username, privkey):
-    result = c_ssh_userauth_publickey(ssh_session, 
+def ssh_userauth_publickey(ssh_session_int, username, privkey):
+    result = c_ssh_userauth_publickey(ssh_session_int, 
                                       c_char_p(username), 
                                       priv_key)
 
     _check_auth_response(result)
 
-def ssh_key_import_private(ssh_session, filename, passphrase=None):
+def ssh_key_import_private(ssh_session_int, filename, passphrase=None):
     key = ssh_key_new()
     result = c_ssh_key_import_private(key,
-                                      ssh_session, 
+                                      ssh_session_int, 
                                       c_char_p(filename), 
                                       c_char_p(passphrase))
 
