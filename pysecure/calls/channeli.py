@@ -38,3 +38,13 @@ c_ssh_channel_is_open = libssh.ssh_channel_is_open
 c_ssh_channel_is_open.argtypes = [c_ssh_channel]
 c_ssh_channel_is_open.restype = c_int
 
+# LIBSSH_API int ssh_channel_open_session(ssh_channel channel);
+c_ssh_channel_open_session = libssh.ssh_channel_open_session
+c_ssh_channel_open_session.argtypes = [c_ssh_channel]
+c_ssh_channel_open_session.restype = c_int
+
+# int ssh_channel_request_exec(ssh_channel channel, const char *cmd)
+c_ssh_channel_request_exec = libssh.ssh_channel_request_exec
+c_ssh_channel_request_exec.argtypes = [c_ssh_channel, c_char_p]
+c_ssh_channel_request_exec.restype = c_int
+

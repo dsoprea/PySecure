@@ -11,8 +11,9 @@ from pysecure.calls.channeli import c_ssh_channel_new, \
                                     c_ssh_channel_write, c_ssh_channel_free, \
                                     c_ssh_channel_read, \
                                     c_ssh_channel_send_eof, \
-                                    c_ssh_channel_is_open
-
+                                    c_ssh_channel_is_open, \
+                                    c_ssh_channel_open_session, \
+                                    c_ssh_channel_request_exec
 
 def _ssh_channel_new(ssh_session_int):
     result = c_ssh_channel_new(ssh_session_int)
@@ -85,9 +86,23 @@ def _ssh_channel_is_open(ssh_channel_int):
     result = c_ssh_channel_is_open(ssh_channel_int)
     return (result == 0)
 
+def _ssh_channel_open_session(ssh_channel):
+    result = c_ssh_channel_open_session(ssh_channel)
+    if result == SSH_AGAIN:
+        raise SshNonblockingTryAgainException()
+    elif result != SSH_OK:
+        raise SshError("Could not open session on channel.")
+
+def _ssh_channel_request_exec(ssh_channel, cmd):
+    result = c_ssh_channel_request_exec(ssh_channel, c_char_p(cmd))
+    if result == SSH_AGAIN:
+        raise SshNonblockingTryAgainException()
+    elif result != SSH_OK:
+        raise SshError("Could not execute shell request on channel.")
+
 
 class SshChannel(object):
-    def __init__(self, ssh_session, ssh_channel=None, eof_on_close=False):
+    def __init__(self, ssh_session, ssh_channel=None):
         self.__ssh_session_int = getattr(ssh_session, 
                                          'session_id', 
                                          ssh_session)
@@ -96,8 +111,6 @@ class SshChannel(object):
                                          'session_id', 
                                          ssh_channel)
 
-        self.__eof_on_close = eof_on_close
-
     def __enter__(self):
         if self.__ssh_channel_int is None:
             self.__ssh_channel_int = _ssh_channel_new(self.__ssh_session_int)
@@ -105,9 +118,10 @@ class SshChannel(object):
         return self
 
     def __exit__(self, e_type, e_value, e_tb):
-        if self.__eof_on_close is True:
-            self.send_eof()
 
+        # The documentation says that a "free" implies a "close", and that a 
+        # "close" implies a "send eof". From a cursory glance, this seems
+        # accurate.
         _ssh_channel_free(self.__ssh_channel_int)
 
     def open_forward(self, host_remote, port_remote, host_source, port_local):
@@ -128,4 +142,10 @@ class SshChannel(object):
 
     def is_open(self):
         return _ssh_channel_is_open(self.__ssh_channel_int)
+
+    def open_session(self):
+        return _ssh_channel_open_session(self.__ssh_channel_int)
+
+    def request_exec(self, cmd):
+        return _ssh_channel_request_exec(self.__ssh_channel_int, cmd)
 

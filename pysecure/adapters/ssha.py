@@ -2,11 +2,13 @@ import logging
 
 from ctypes import c_char_p, c_void_p, c_ubyte, byref, POINTER, cast, c_uint, \
                    c_int
+from cStringIO import StringIO
 
 from pysecure.exceptions import SshError, SshLoginError, SshHostKeyException, \
                                 SshNonblockingTryAgainException, \
                                 SshTimeoutException
 
+from pysecure.config import DEFAULT_EXECUTE_READ_BLOCK_SIZE
 from pysecure.constants.ssh import SSH_OK, SSH_ERROR, SSH_AGAIN, \
                                    \
                                    SSH_AUTH_ERROR, SSH_AUTH_DENIED, \
@@ -347,7 +349,7 @@ class SshSession(object):
         ssh_channel_int = _ssh_forward_accept(self.__ssh_session_int, \
                                               timeout_ms)
 
-        return SshChannel(self, ssh_channel_int, eof_on_close=True)
+        return SshChannel(self, ssh_channel_int)
 
     def is_server_known(self, allow_new=False, cb=None):
         return _ssh_is_server_known(self.__ssh_session_int, allow_new, cb)
@@ -363,6 +365,27 @@ class SshSession(object):
                                              username, 
                                              filepath, 
                                              passphrase)
+
+    def execute(self, cmd, block_size=DEFAULT_EXECUTE_READ_BLOCK_SIZE):
+        """Execute a remote command. This functionality does not support more 
+        than one command to be executed on the same channel.
+        """
+    
+        with SshChannel(self) as sc:
+            logging.debug("Executing command: %s" % (cmd))
+
+            sc.open_session()
+            sc.request_exec(cmd)
+
+            buffer_ = StringIO()
+            while 1:
+                bytes = sc.read(block_size)
+                buffer_.write(bytes)
+                
+                if len(bytes) < block_size:
+                    break
+
+            return buffer_.getvalue()
 
     @property
     def session_id(self):
