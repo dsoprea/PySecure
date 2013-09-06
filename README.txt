@@ -20,9 +20,10 @@ Status
 ======
 
 X SFTP functionality.
-X Port forwarding.
+X Local port forwarding.
 X Reverse port forwarding.
-  Remote execution.
+X Remote command (single commands).
+  Remote execution (shell session).
 
 
 Dependencies
