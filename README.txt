@@ -151,3 +151,27 @@ Reverse Forwarding:
                 response = "Received."
 
                 sc.write(response)
+
+
+Remote Execution
+================
+
+Remote Command:
+
+    This functionality can be used to execute one command at a time:
+
+        data = ssh.execute('lsb_release -a')
+        print(data)
+
+        data = ssh.execute('whoami')
+        print(data)
+
+    Output:
+
+        Distributor ID:	Ubuntu
+        Description:	Ubuntu 13.04
+        Release:	13.04
+        Codename:	raring
+
+        dustin
+
