@@ -27,7 +27,7 @@ from pysecure.calls.sshi import c_free, c_ssh_userauth_privatekey_file, \
                                 c_ssh_new, c_ssh_options_set, c_ssh_init, \
                                 c_ssh_finalize, c_ssh_userauth_password, \
                                 c_ssh_get_error, c_ssh_forward_listen, \
-                                c_ssh_forward_accept, \
+                                c_ssh_forward_accept, c_ssh_key_new, \
                                 c_ssh_userauth_publickey, \
                                 c_ssh_key_import_private, c_ssh_key_clean, \
                                 c_ssh_key_free
@@ -252,6 +252,39 @@ def _ssh_forward_accept(ssh_session, timeout_ms):
 
     return ssh_channel
 
+def _ssh_key_new():
+    result = c_ssh_key_new()
+    if result is None:
+        raise SshError("Could not create empty key.")
+
+def ssh_userauth_publickey(ssh_session, username, privkey):
+    result = c_ssh_userauth_publickey(ssh_session, 
+                                      c_char_p(username), 
+                                      priv_key)
+
+    _check_auth_response(result)
+
+def ssh_key_import_private(ssh_session, filename, passphrase=None):
+    key = ssh_key_new()
+    result = c_ssh_key_import_private(key,
+                                      ssh_session, 
+                                      c_char_p(filename), 
+                                      c_char_p(passphrase))
+
+    if result != SSH_OK:
+        raise SshError("Could not import private-key from [%s]." % (filename))
+
+    return key
+
+# TODO: Finish.
+#def ssh_key_clean(ssh_key):
+#    c_ssh_key_clean(ssh_key)
+
+# void ssh_key_free (ssh_key key)
+#c_ssh_key_free = libssh.ssh_key_free
+#c_ssh_key_free.argtypes = [c_ssh_key]
+#c_ssh_key_free.restype = None
+
 # TODO: Implement these.
 #c_ssh_userauth_publickey
 #c_ssh_key_import_private
@@ -261,9 +294,11 @@ def _ssh_forward_accept(ssh_session, timeout_ms):
 
 class SshSystem(object):
     def __enter__(self):
+        logging.debug("Initializing SSH system.")
         _ssh_init()
 
     def __exit__(self, e_type, e_value, e_tb):
+        logging.debug("Cleaning-up SSH system.")
         _ssh_finalize
 
 
@@ -273,6 +308,8 @@ class SshSession(object):
 
     def __enter__(self):
         self.__ssh_session_int = _ssh_new()
+
+        logging.debug("Creating SSH session: %d" % (self.__ssh_session_int))
 
         for k, v in self.__options.items():
             (option_id, type_) = SSH_OPTIONS[k]
@@ -299,6 +336,8 @@ class SshSession(object):
         return self
 
     def __exit__(self, e_type, e_value, e_tb):
+        logging.debug("Freeing SSH session: %d" % (self.__ssh_session_int))
+
         _ssh_free(self.__ssh_session_int)
 
     def forward_listen(self, address, port):
@@ -332,12 +371,16 @@ class SshSession(object):
 
 class SshConnect(object):
     def __init__(self, ssh_session):
-        self.__ssh_session_int = ssh_session.session_id
+        self.__ssh_session_int = getattr(ssh_session, 
+                                         'session_id', 
+                                         ssh_session)
 
     def __enter__(self):
+        logging.debug("Connecting SSH.")
         _ssh_connect(self.__ssh_session_int)
 
     def __exit__(self, e_type, e_value, e_tb):
+        logging.debug("Disconnecting SSH.")
         _ssh_disconnect(self.__ssh_session_int)
 
 
@@ -355,7 +398,8 @@ class _PublicKeyHashString(object):
 
 
 class PublicKeyHash(object):
-    def __init__(self, ssh_session_int):
+    def __init__(self, ssh_session):
+        ssh_session_int = getattr(ssh_session, 'session_id', ssh_session)
         self.__hasht = _ssh_get_pubkey_hash(ssh_session_int)
         
     def __del__(self):

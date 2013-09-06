@@ -1,40 +1,18 @@
 #!/usr/bin/env python2.7
 
-import logging
+from pysecure.adapters.sftpa import SftpFile
 
-from pysecure import log_config
-from pysecure.adapters.ssha import SshSession, SshConnect, SshSystem, \
-                                   PublicKeyHash
-from pysecure.adapters.sftpa import SftpSession, SftpFile
+from test_base import connect_sftp
 
-user = 'dustin'
-host = 'localhost'
-key_filepath = '/home/dustin/.ssh/id_dsa'
-verbosity = 0
-
-with SshSystem():
-    with SshSession(user=user, host=host, verbosity=verbosity) as ssh:
-        with SshConnect(ssh):
-            logging.debug("Ready to authenticate.")
-
-            def hostkey_gate(hk, would_accept):
-                logging.debug("CB HK: %s" % (hk))
-                logging.debug("CB Would Accept: %s" % (would_accept))
-                
-                return would_accept
-
-            ssh.is_server_known(allow_new=True, cb=hostkey_gate)
-            ssh.userauth_privatekey_file(None, key_filepath, None)
-
-            with SftpSession(ssh) as sftp:
-                with SftpFile(sftp, 'test_libgksu2.so.0', 'r') as sf:
+def sftp_cb(ssh, sftp):
+    with SftpFile(sftp, 'test_libgksu2.so.0', 'r') as sf:
 #                    buffer_ = sf.read(100)
-                    buffer_ = sf.read()
+        buffer_ = sf.read()
 
-                    with file('/tmp/sftp_dump', 'w') as f:
-                        f.write(buffer_)
+        with file('/tmp/sftp_dump', 'w') as f:
+            f.write(buffer_)
 
-                    print("Read (%d) bytes." % (len(buffer_)))
+        print("Read (%d) bytes." % (len(buffer_)))
 #                    print("Read: [%s]" % (buffer_))
 
 
@@ -62,4 +40,6 @@ with SshSystem():
 #                    buffer_ = sf.read(100)
 #                    print("Read 2: (%d) bytes" % (len(buffer_)))
 #                    print("Position after read 2: %d" % (sf.position))
+
+connect_sftp(sftp_cb)
 

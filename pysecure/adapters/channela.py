@@ -14,20 +14,17 @@ from pysecure.calls.channeli import c_ssh_channel_new, \
                                     c_ssh_channel_is_open
 
 
-# ssh_channel ssh_channel_new(ssh_session session)
-# int ssh_channel_open_forward(ssh_channel channel, const char *remotehost,int remoteport, const char *sourcehost, int localport)
-# void ssh_channel_free(ssh_channel channel)
-# int ssh_channel_write(ssh_channel channel, const void *data, uint32_t len)
-
-def _ssh_channel_new(ssh_session):
-    result = c_ssh_channel_new(ssh_session)
+def _ssh_channel_new(ssh_session_int):
+    result = c_ssh_channel_new(ssh_session_int)
     if result is None:
         raise SshError("Could not open channel.")
 
     return result
 
-def _ssh_channel_open_forward(ssh_channel, host_remote, port_remote, host_source, port_local):
-    result = c_ssh_channel_open_forward(ssh_channel, 
+def _ssh_channel_open_forward(ssh_channel_int, host_remote, port_remote, 
+                              host_source, port_local):
+
+    result = c_ssh_channel_open_forward(ssh_channel_int, 
                                         c_char_p(host_remote), 
                                         c_int(port_remote), 
                                         c_char_p(host_source), 
@@ -38,9 +35,9 @@ def _ssh_channel_open_forward(ssh_channel, host_remote, port_remote, host_source
     elif result != SSH_OK:
         raise SshError("Forward failed.")
 
-def _ssh_channel_write(ssh_channel, data):
+def _ssh_channel_write(ssh_channel_int, data):
     data_len = len(data)
-    sent_bytes = c_ssh_channel_write(ssh_channel, 
+    sent_bytes = c_ssh_channel_write(ssh_channel_int, 
                                      cast(c_char_p(data), c_void_p), 
                                      c_uint32(data_len))
 
@@ -50,12 +47,12 @@ def _ssh_channel_write(ssh_channel, data):
         raise SshError("Channel write of (%d) bytes failed for length (%d) of "
                        "written data." % (data_len, sent_bytes))
 
-def _ssh_channel_read(ssh_channel, count):
+def _ssh_channel_read(ssh_channel_int, count):
     """Do a read on a channel."""
 
     buffer_ = create_string_buffer(count)
     while 1:
-        received_bytes = c_ssh_channel_read(ssh_channel, 
+        received_bytes = c_ssh_channel_read(ssh_channel_int, 
                                             cast(buffer_, c_void_p), 
                                             c_uint32(count),
                                             0)
@@ -72,31 +69,38 @@ def _ssh_channel_read(ssh_channel, count):
             break
 
     logging.debug("(%d) bytes received." % (received_bytes))
+
 # TODO: Where is the timeout configured for the read?
     return buffer_.raw[0:received_bytes]
 
-def _ssh_channel_free(ssh_channel):
-    c_ssh_channel_free(ssh_channel)
+def _ssh_channel_free(ssh_channel_int):
+    c_ssh_channel_free(ssh_channel_int)
 
-def _ssh_channel_send_eof(ssh_channel):
-    result = c_ssh_channel_send_eof(ssh_channel)
+def _ssh_channel_send_eof(ssh_channel_int):
+    result = c_ssh_channel_send_eof(ssh_channel_int)
     if result != SSH_OK:
         raise SshError("Could not send EOF.")
 
-def _ssh_channel_is_open(ssh_channel):
-    result = c_ssh_channel_is_open(ssh_channel)
+def _ssh_channel_is_open(ssh_channel_int):
+    result = c_ssh_channel_is_open(ssh_channel_int)
     return (result == 0)
 
 
 class SshChannel(object):
-    def __init__(self, ssh_session, ssh_channel_int=None, eof_on_close=False):
-        self.__ssh_session = ssh_session.session_id
-        self.__ssh_channel_int = ssh_channel_int
+    def __init__(self, ssh_session, ssh_channel=None, eof_on_close=False):
+        self.__ssh_session_int = getattr(ssh_session, 
+                                         'session_id', 
+                                         ssh_session)
+
+        self.__ssh_channel_int = getattr(ssh_channel, 
+                                         'session_id', 
+                                         ssh_channel)
+
         self.__eof_on_close = eof_on_close
 
     def __enter__(self):
         if self.__ssh_channel_int is None:
-            self.__ssh_channel_int = _ssh_channel_new(self.__ssh_session)
+            self.__ssh_channel_int = _ssh_channel_new(self.__ssh_session_int)
 
         return self
 
@@ -116,8 +120,8 @@ class SshChannel(object):
     def write(self, data):
         _ssh_channel_write(self.__ssh_channel_int, data)
 
-    def read(self, count, allow_empty=False):
-        return _ssh_channel_read(self.__ssh_channel_int, count, allow_empty)
+    def read(self, count):
+        return _ssh_channel_read(self.__ssh_channel_int, count)
 
     def send_eof(self):
         return _ssh_channel_send_eof(self.__ssh_channel_int)

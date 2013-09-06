@@ -100,23 +100,35 @@ c_ssh_forward_accept = libssh.ssh_forward_accept
 c_ssh_forward_accept.argtypes = [c_ssh_session, c_int]
 c_ssh_forward_accept.restype = c_ssh_channel
 
+# TODO: Fix. Is missing.
+# ssh_key ssh_key_new(void)
+#c_ssh_key_new = libssh.ssh_key_new
+#c_ssh_key_new.argtypes = []
+#c_ssh_key_new.restype = c_ssh_key
+c_ssh_key_new = None
+
 # int ssh_userauth_publickey(ssh_session session, const char *username, const ssh_key privkey)
-c_ssh_userauth_publickey = libssh.ssh_userauth_publickey
-c_ssh_userauth_publickey.argtypes = [c_ssh_session, c_char_p, c_ssh_key]
-c_ssh_userauth_publickey.restype = None
+#c_ssh_userauth_publickey = libssh.ssh_userauth_publickey
+#c_ssh_userauth_publickey.argtypes = [c_ssh_session, c_char_p, c_ssh_key]
+#c_ssh_userauth_publickey.restype = c_int
+c_ssh_userauth_publickey = None
 
 # int ssh_key_import_private(ssh_key key, ssh_session session, const char *filename, const char *passphrase)
-c_ssh_key_import_private = libssh.ssh_key_import_private
-c_ssh_key_import_private.argtypes = [c_ssh_key, c_ssh_session, c_char_p, c_char_p]
-c_ssh_key_import_private.restype = c_int
+#c_ssh_key_import_private = libssh.ssh_key_import_private
+#c_ssh_key_import_private.argtypes = [c_ssh_key, c_ssh_session, c_char_p, c_char_p]
+#c_ssh_key_import_private.restype = c_int
+c_ssh_key_import_private = None
 
 # void ssh_key_clean(ssh_key key)
-c_ssh_key_clean = libssh.ssh_key_clean
-c_ssh_key_clean.argtypes = [c_ssh_key]
-c_ssh_key_clean.restype = None
+#c_ssh_key_clean = libssh.ssh_key_clean
+#c_ssh_key_clean.argtypes = [c_ssh_key]
+#c_ssh_key_clean.restype = None
+#c_ssh_key_clean = None
+c_ssh_key_clean = None
 
 # void ssh_key_free (ssh_key key)
-c_ssh_key_free = libssh.ssh_key_free
-c_ssh_key_free.argtypes = [c_ssh_key]
-c_ssh_key_free.restype = None
+#c_ssh_key_free = libssh.ssh_key_free
+#c_ssh_key_free.argtypes = [c_ssh_key]
+#c_ssh_key_free.restype = None
+c_ssh_key_free = None
 

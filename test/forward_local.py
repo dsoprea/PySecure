@@ -1,46 +1,28 @@
 #!/usr/bin/env python2.7
 
-import logging
-
-from pysecure import log_config
-from pysecure.adapters.ssha import SshSession, SshConnect, SshSystem, \
-                                   PublicKeyHash
 from pysecure.adapters.channela import SshChannel
 
-user = 'dustin'
-host = 'localhost'
-key_filepath = '/home/dustin/.ssh/id_dsa'
-verbosity = 0
+from test_base import connect_ssh
 
-with SshSystem():
-    with SshSession(user=user, host=host, verbosity=verbosity) as ssh:
-        with SshConnect(ssh):
-            logging.debug("Ready to authenticate.")
+def ssh_cb(ssh):
+    host_remote = 'localhost'
+    port_remote = 80
+    host_source = 'localhost'
+    port_local = 1111
+    data = "GET / HTTP/1.1\nHost: localhost\n\n"
 
-            def hostkey_gate(hk, would_accept):
-                logging.debug("CB HK: %s" % (hk))
-                logging.debug("CB Would Accept: %s" % (would_accept))
-                
-                return would_accept
+    with SshChannel(ssh) as sc:
+        sc.open_forward(host_remote, 
+                        port_remote, 
+                        host_source, 
+                        port_local)
 
-            ssh.is_server_known(allow_new=True, cb=hostkey_gate)
-            ssh.userauth_privatekey_file(None, key_filepath, None)
+        sc.write(data)
 
-            host_remote = 'localhost'
-            port_remote = 80
-            host_source = 'localhost'
-            port_local = 1111
-            data = "GET / HTTP/1.1\nHost: localhost\n\n"
+        received = sc.read(1024)
 
-            with SshChannel(ssh) as sc:
-                sc.open_forward(host_remote, 
-                                port_remote, 
-                                host_source, 
-                                port_local)
+        print("Received:\n\n%s" % (received))
 
-                sc.write(data)
 
-                received = sc.read(1024)
-
-                print("Received:\n\n%s" % (received))
+connect_ssh(ssh_cb)
 
