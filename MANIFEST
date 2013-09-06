@@ -8,3 +8,4 @@ pysecure/library.py
 pysecure/log_config.py
 pysecure/types.py
 pysecure/utility.py
+test/test_base.py
