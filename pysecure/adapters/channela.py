@@ -13,7 +13,11 @@ from pysecure.calls.channeli import c_ssh_channel_new, \
                                     c_ssh_channel_send_eof, \
                                     c_ssh_channel_is_open, \
                                     c_ssh_channel_open_session, \
-                                    c_ssh_channel_request_exec
+                                    c_ssh_channel_request_exec, \
+                                    c_ssh_channel_request_shell, \
+                                    c_ssh_channel_request_pty, \
+                                    c_ssh_channel_change_pty_size, \
+                                    c_ssh_channel_is_eof
 
 def _ssh_channel_new(ssh_session_int):
     result = c_ssh_channel_new(ssh_session_int)
@@ -84,7 +88,7 @@ def _ssh_channel_send_eof(ssh_channel_int):
 
 def _ssh_channel_is_open(ssh_channel_int):
     result = c_ssh_channel_is_open(ssh_channel_int)
-    return (result == 0)
+    return (result != 0)
 
 def _ssh_channel_open_session(ssh_channel):
     result = c_ssh_channel_open_session(ssh_channel)
@@ -100,6 +104,29 @@ def _ssh_channel_request_exec(ssh_channel, cmd):
     elif result != SSH_OK:
         raise SshError("Could not execute shell request on channel.")
 
+def _ssh_channel_request_shell(ssh_channel):
+    result = c_ssh_channel_request_shell(ssh_channel)
+    if result == SSH_AGAIN:
+        raise SshNonblockingTryAgainException()
+    elif result != SSH_OK:
+        raise SshError("Shell request failed.")
+
+def _ssh_channel_request_pty(ssh_channel):
+    result = c_ssh_channel_request_pty(ssh_channel)
+    if result == SSH_AGAIN:
+        raise SshNonblockingTryAgainException()
+    elif result != SSH_OK:
+        raise SshError("PTY request failed.")
+
+def _ssh_channel_change_pty_size(ssh_channel, col, row):
+    result = c_ssh_channel_change_pty_size(ssh_channel, c_int(col), c_int(row))
+    if result != SSH_OK:
+        raise SshError("PTY size change failed.")
+
+def _ssh_channel_is_eof(ssh_channel):
+    result = c_ssh_channel_is_eof(ssh_channel)
+
+    return bool(result)
 
 class SshChannel(object):
     def __init__(self, ssh_session, ssh_channel=None):
@@ -138,14 +165,32 @@ class SshChannel(object):
         return _ssh_channel_read(self.__ssh_channel_int, count)
 
     def send_eof(self):
-        return _ssh_channel_send_eof(self.__ssh_channel_int)
+        _ssh_channel_send_eof(self.__ssh_channel_int)
 
     def is_open(self):
         return _ssh_channel_is_open(self.__ssh_channel_int)
 
     def open_session(self):
-        return _ssh_channel_open_session(self.__ssh_channel_int)
+        _ssh_channel_open_session(self.__ssh_channel_int)
 
     def request_exec(self, cmd):
+        """Execute a command. Note that this can only be done once, and may be 
+        the only operation performed with the current channel.
+        """
+
         return _ssh_channel_request_exec(self.__ssh_channel_int, cmd)
+
+    def request_shell(self):
+        """Activate shell services on the channel (for PTY emulation)."""
+
+        _ssh_channel_request_shell(self.__ssh_channel_int)
+
+    def request_pty(self):
+        _ssh_channel_request_pty(self.__ssh_channel_int)
+
+    def change_pty_size(self, col, row):
+        _ssh_channel_change_pty_size(self.__ssh_channel_int, col, row)
+
+    def is_eof(self):
+        return _ssh_channel_is_eof(self.__ssh_channel_int)
 

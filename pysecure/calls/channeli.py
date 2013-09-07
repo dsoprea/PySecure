@@ -48,3 +48,23 @@ c_ssh_channel_request_exec = libssh.ssh_channel_request_exec
 c_ssh_channel_request_exec.argtypes = [c_ssh_channel, c_char_p]
 c_ssh_channel_request_exec.restype = c_int
 
+# int ssh_channel_request_shell(ssh_channel channel)
+c_ssh_channel_request_shell = libssh.ssh_channel_request_shell
+c_ssh_channel_request_shell.argtypes = [c_ssh_channel]
+c_ssh_channel_request_shell.restype = c_int
+
+# int ssh_channel_request_pty(ssh_channel channel)
+c_ssh_channel_request_pty = libssh.ssh_channel_request_pty
+c_ssh_channel_request_pty.argtypes = [c_ssh_channel]
+c_ssh_channel_request_pty.restype = c_int
+
+# int ssh_channel_change_pty_size(ssh_channel channel, int col, int row)
+c_ssh_channel_change_pty_size = libssh.ssh_channel_change_pty_size
+c_ssh_channel_change_pty_size.argtypes = [c_ssh_channel, c_int, c_int]
+c_ssh_channel_change_pty_size.restype = c_int
+
+# int ssh_channel_is_eof(ssh_channel channel)
+c_ssh_channel_is_eof = libssh.ssh_channel_is_eof
+c_ssh_channel_is_eof.argtypes = [c_ssh_channel]
+c_ssh_channel_is_eof.restype = c_int
+
