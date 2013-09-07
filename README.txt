@@ -23,7 +23,8 @@ X SFTP functionality.
 X Local port forwarding.
 X Reverse port forwarding.
 X Remote command (single commands).
-  Remote execution (shell session).
+X Remote execution (shell session).
+  Threading support.
 
 
 Dependencies
@@ -157,7 +158,7 @@ Reverse Forwarding:
 Remote Execution
 ================
 
-Remote Command:
+Remote Command (efficient for single command):
 
     This functionality can be used to execute one command at a time:
 
@@ -175,4 +176,27 @@ Remote Command:
         Codename:	raring
 
         dustin
+
+Remote Shell (efficient for many commands):
+
+    Example:
+
+        ssh.set_blocking(False)
+        rsp = RemoteShellProcessor(ssh)
+        
+        def shell_context_cb(sc, welcome):
+            output = rsp.do_command('cat /proc/uptime')
+            print(output)
+
+            output = rsp.do_command('whoami')
+            print(output)
+        
+        rsp.shell(shell_context_cb)
+
+    Output:
+
+        $ PYTHONPATH=. test/example.py 
+        631852.37 651773.95
+        dustin
+        $
 

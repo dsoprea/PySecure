@@ -1,13 +1,21 @@
 #!/usr/bin/env python2.7
 
+from pysecure.adapters.channela import RemoteShellProcessor
+
 from test_base import connect_ssh
 
 def ssh_cb(ssh):
-    data = ssh.execute('lsb_release -a')
-    print(data)
+    ssh.set_blocking(False)
+    rsp = RemoteShellProcessor(ssh)
+    
+    def shell_context_cb(sc, welcome):
+        output = rsp.do_command('cat /proc/uptime')
+        print(output)
 
-    data = ssh.execute('whoami')
-    print(data)
+        output = rsp.do_command('whoami')
+        print(output)
+    
+    rsp.shell(shell_context_cb)
 
 connect_ssh(ssh_cb)
 

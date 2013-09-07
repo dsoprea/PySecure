@@ -110,8 +110,18 @@ c_ssh_userauth_publickey = libssh.ssh_userauth_publickey
 c_ssh_userauth_publickey.argtypes = [c_ssh_session, c_char_p, c_ssh_key]
 c_ssh_userauth_publickey.restype = c_int
 
-# void ssh_key_free (ssh_key key)
+# void ssh_key_free(ssh_key key)
 c_ssh_key_free = libssh.ssh_key_free
 c_ssh_key_free.argtypes = [c_ssh_key]
 c_ssh_key_free.restype = None
+
+# void ssh_set_blocking(ssh_session session, int blocking)
+c_ssh_set_blocking = libssh.ssh_set_blocking
+c_ssh_set_blocking.argtypes = [c_ssh_session, c_int]
+c_ssh_set_blocking.restype = None
+
+# int ssh_is_blocking(ssh_session session)
+c_ssh_is_blocking = libssh.ssh_is_blocking
+c_ssh_is_blocking.argtypes = [c_ssh_session]
+c_ssh_is_blocking.restype = c_int
 

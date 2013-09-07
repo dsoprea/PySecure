@@ -1,5 +1,7 @@
 from sys import stdout
 
+from pysecure.exceptions import SshNonblockingTryAgainException
+
 def dumphex(data):
     data_len = len(data)
     row_size = 16
@@ -47,4 +49,17 @@ def dumphex(data):
         print
 
         i += row_size
+
+def sync(cb):
+    """A function that will repeatedly invoke a callback until it doesn't 
+    return a try-again error.
+    """
+
+    while 1:
+        try:
+            cb()
+        except SshNonblockingTryAgainException:
+            pass
+        else:
+            break
 

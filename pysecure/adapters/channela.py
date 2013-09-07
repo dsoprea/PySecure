@@ -2,10 +2,15 @@ import logging
 
 from ctypes import c_char_p, c_void_p, cast, c_uint32, c_int, \
                    create_string_buffer
+from cStringIO import StringIO
+from time import time
 
+from pysecure.config import NONBLOCK_READ_TIMEOUT_MS, \
+                            DEFAULT_SHELL_READ_BLOCK_SIZE
 from pysecure.constants.ssh import SSH_OK, SSH_ERROR, SSH_AGAIN
 from pysecure.exceptions import SshError, SshNonblockingTryAgainException, \
                                 SshNoDataReceivedException
+from pysecure.utility import sync
 from pysecure.calls.channeli import c_ssh_channel_new, \
                                     c_ssh_channel_open_forward, \
                                     c_ssh_channel_write, c_ssh_channel_free, \
@@ -72,8 +77,6 @@ def _ssh_channel_read(ssh_channel_int, count):
 
         else:
             break
-
-    logging.debug("(%d) bytes received." % (received_bytes))
 
 # TODO: Where is the timeout configured for the read?
     return buffer_.raw[0:received_bytes]
@@ -193,4 +196,95 @@ class SshChannel(object):
 
     def is_eof(self):
         return _ssh_channel_is_eof(self.__ssh_channel_int)
+
+
+class RemoteShellProcessor(object):
+    def __init__(self, ssh_session, block_size=DEFAULT_SHELL_READ_BLOCK_SIZE):
+        logging.debug("Initializing RSP.")
+
+        if ssh_session.is_blocking() is True:
+            raise Exception("RemoteShellProcessor requires a non-blocking "
+                            "session.")
+
+        self.__ssh_session = ssh_session
+        self.__block_size = block_size
+
+    def __wait_on_output(self, data_cb):
+
+        start_at = time()
+        while self.__sc.is_open() and self.__sc.is_eof() is False:
+            try:
+                buffer_ = self.__sc.read(self.__block_size)
+            except SshNonblockingTryAgainException:
+                buffer_ = ''
+
+            if buffer_ == '':
+                delta = time() - start_at
+                if delta * 1000 > NONBLOCK_READ_TIMEOUT_MS:
+                    break
+
+                continue
+
+            data_cb(buffer_)
+            start_at = time()
+
+    def __wait_on_output_all(self, whole_data_cb):
+
+        received = StringIO()
+        def data_cb(buffer_):
+            received.write(buffer_)
+
+        self.__wait_on_output(data_cb)
+        whole_data_cb(received.getvalue())
+
+    def do_command(self, command, block_cb=None, add_nl=True, 
+                   drop_last_line=True, drop_first_line=True):
+        logging.debug("Sending command: %s" % (command.rstrip()))
+
+        if add_nl is True:
+            command += '\n'
+
+        self.__sc.write(command)
+        
+        if block_cb is not None:
+            self.__wait_on_output(block_cb)
+        else:
+            received_stream = StringIO()
+            def data_cb(buffer_):
+                received_stream.write(buffer_)
+            
+            self.__wait_on_output_all(data_cb)
+            received = received_stream.getvalue()
+
+            if drop_first_line is True:
+                received = received[received.index('\n') + 1:]
+
+            # In all likelihood, the last line is probably the prompt.
+            if drop_last_line is True:
+                received = received[:received.rindex('\n')]
+
+            return received
+
+    def shell(self, ready_cb, cols=80, rows=24):
+        logging.debug("Starting RSP shell.")
+
+        with SshChannel(self.__ssh_session) as sc:
+            sync(sc.open_session)
+            sync(sc.request_pty)
+
+            sc.change_pty_size(cols, rows)
+            sync(sc.request_shell)
+
+            welcome_stream = StringIO()
+            def welcome_received_cb(data):
+                welcome_stream.write(data)
+            
+            self.__sc = sc
+            self.__wait_on_output_all(welcome_received_cb)
+            welcome = welcome_stream.getvalue()
+
+            logging.debug("RSP shell is ready.")
+
+            ready_cb(sc, welcome)
+            self.__sc = None
 
