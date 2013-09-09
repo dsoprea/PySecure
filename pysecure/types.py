@@ -80,6 +80,18 @@ class _CSftpAttributesStruct(Structure):
     def is_unknown_type(self):
         return self.type == SSH_FILEXFER_TYPE_UNKNOWN
 
+    @property
+    def modified_time(self):
+# TODO: We're not sure if the mtime64 value is available on a 32-bit platform. We do this to be safe.
+        return self.mtime64 if self.mtime64 else self.mtime
+
+    @property
+    def modified_time_dt(self):
+        if self.mtime64:
+            return datetime.fromtimestamp(self.mtime64)
+        else:
+            return datetime.fromtimestamp(self.mtime)
+
 _CSftpAttributes = POINTER(_CSftpAttributesStruct)
 
 

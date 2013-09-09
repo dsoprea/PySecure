@@ -1,18 +1,19 @@
 import logging
 
 from datetime import datetime
-from os import SEEK_SET, SEEK_CUR, SEEK_END
+from os import SEEK_SET, SEEK_CUR, SEEK_END, mkdir, unlink
 from ctypes import create_string_buffer, cast, c_void_p, c_int, c_char_p, \
                    c_size_t
 from collections import deque
 from cStringIO import StringIO
+from shutil import rmtree
 
 from pysecure.constants.ssh import SSH_NO_ERROR
 from pysecure.constants.sftp import O_RDONLY, O_WRONLY, O_RDWR, O_CREAT, \
                                     O_TRUNC
 
 from pysecure.constants import SERVER_RESPONSES
-from pysecure.config import DEFAULT_CREATE_MODE
+from pysecure.config import DEFAULT_CREATE_MODE, MAX_MIRROR_LISTING_CHUNK_SIZE
 from pysecure.calls.sftpi import c_sftp_get_error, c_sftp_new, c_sftp_init, \
                                  c_sftp_open, c_sftp_write, c_sftp_free, \
                                  c_sftp_opendir, c_sftp_closedir, \
@@ -24,6 +25,7 @@ from pysecure.calls.sftpi import c_sftp_get_error, c_sftp_new, c_sftp_init, \
                                  c_sftp_stat
 
 from pysecure.exceptions import SftpError
+from pysecure.utility import local_recurse
 
 def sftp_get_error(sftp_session_int):
     return c_sftp_get_error(sftp_session_int)
@@ -378,31 +380,157 @@ class SftpSession(object):
     def listdir(self, path):
         return _sftp_listdir(self.__sftp_session_int, path)
 
-    def recurse(self, path, dir_cb, listing_cb, max_listing_size=0):
-        q = deque([path])
+    def recurse(self, path, dir_cb, listing_cb, max_listing_size=0, 
+                max_depth=None):
+        """Recursively iterate a directory. Invoke callbacks for directories 
+        and entries (both are optional, but it doesn't make sense unless one is 
+        provided). "max_listing_size" will allow for the file-listing to be 
+        chunked into manageable pieces. "max_depth" limited how deep recursion 
+        goes. This can be used to make it easy to simply read a single 
+        directory in chunks.
+        """
+                
+        q = deque([(path, 0)])
         while q:
-            path = q.popleft()
+            (path, current_depth) = q.popleft()
 
             entries = self.listdir(path)
             collected = []
             for entry in entries:
+                file_path = ('%s/%s' % (path, entry.name))
+
                 if entry.is_directory:
                     if entry.name == '.' or entry.name == '..':
                         continue
 
-                    dir_cb(path, entry)
+                    if dir_cb is not None:
+                        dir_cb(path, file_path, entry)
 
-                    full_path = ('%s/%s' % (path, entry.name))
-                    q.append(full_path)
-                elif entry.is_regular:
-                    collected.append(entry)
+                    new_depth = current_depth + 1
+                    
+                    if max_depth is not None and max_depth >= new_depth:
+                        q.append((file_path, new_depth))
+                elif entry.is_regular and listing_cb is not None:
+                    collected.append((file_path, entry))
                     if max_listing_size > 0 and \
                        max_listing_size <= len(collected):
                         listing_cb(path, collected)
                         collected = []
 
-            if max_listing_size == 0 or len(collected) > 0:
+            if listing_cb is not None and max_listing_size == 0 or len(collected) > 0:
                 listing_cb(path, collected)
+
+    def write_to_local(self, filepath_from, filepath_to, set_mtime=True):
+        """Open a remote file and write it locally."""
+# TODO: Finish.
+# TODO: Make sure to observe set_mtime.
+        raise NotImplementedError()
+
+    def mirror(self, path_from, path_to):
+        """Recursively mirror the contents of "path_from" into "path_to"."""
+    
+        q = deque([''])
+        while q:
+            path = q.popleft()
+            
+            full_from = ('%s/%s' % (path_from, path)) if path else path_from
+            full_to = ('%s/%s' % (path_to, path)) if path else path_to
+
+            subdirs = self.__mirror_inner(full_from, full_to)
+            for subdir in subdirs:
+                q.append(('%s/%s' % (path, subdir)) if path else subdir)
+
+    def __mirror_inner(self, path_from, path_to):
+        """Mirror a single directory. Return a list of subdirectory names (do
+        not include full path).
+        """
+
+        # Make sure the destination exists.
+
+        try:
+            mkdir(path_to)
+        except OSError:
+            pass
+
+        local_dirs = set()
+        def local_dir_cb(parent_path, full_path, entry):
+            local_dirs.add(entry.name)
+        
+        local_entites = set()
+        local_files = set()
+        def local_listing_cb(parent_path, listing):
+            for (file_path, entry) in listing:
+                entity = (entry.name, entry.modified_time, entry.size)
+                local_entities.add(entity)
+                local_files.add(entry.name)
+
+        local_recurse(path_to, 
+                      local_dir_cb, 
+                      local_listing_cb, 
+                      MAX_MIRROR_LISTING_CHUNK_SIZE, 
+                      0)
+
+        remote_dirs = set()
+        def remote_dir_cb(parent_path, full_path, entry):
+            remote_dirs.add(entry.name)
+
+        remote_entities = set()
+        remote_files = set()
+        remote_dictionary = {}
+        def remote_listing_cb(parent_path, listing):
+            for (file_path, entry) in listing:
+                entity = (entry.name, entry.modified_time, entry.size)
+                remote_entities.add(entity)
+                remote_files.add(entry.name)
+                remote_dictionary[entry.name] = entry
+
+        sftp.recurse(path_from, 
+                     remote_dir_cb, 
+                     remote_listing_cb, 
+                     MAX_MIRROR_LISTING_CHUNK_SIZE,
+                     0)
+
+        # Now, calculate the differences.
+
+        new_dirs = remote_dirs - local_dirs
+        deleted_dirs = local_dirs - remote_dirs
+
+        # Get the files from remote that aren't identical to existing local 
+        # entries. These will be copied.
+        missing_entities = remote_entities - local_entities
+
+        # Get the files from local that aren't identical to existing remote
+        # entries. These will be deleted.
+        deleted_entities = local_entities - remote_entities
+
+        # Delete all remote-deleted directories.
+        for name in deleted_dirs:
+            rmtree('%s/%s' % (path_to, name))
+
+        # Delete all remote-deleted non-directory entries, regardless of type.
+        for (name, mtime, size) in deleted_entities:
+            unlink('%s/%s' % (path_to, name))
+
+        # Create new directories.
+        for name in new_dirs:
+            mkdir('%s/%s' % (path_to, name))
+
+        # Write new/changed files. Handle all but "unknown" file types.
+        for (name, mtime, size) in missing_entities:
+            entry = remote_dictionary[name]
+            filepath_from = ('%s/%s' % (path_from, name))
+            filepath_to = ('%s/%s' % (path_to, name))
+
+            if entry.is_regular:
+                self.write_to_local(filepath_from, filepath_to)
+            elif entry.is_symlink:
+# TODO: Finish.
+                raise NotImplementedError()
+            elif entry.is_special:
+# TODO: Finish.
+                raise NotImplementedError()
+
+        return list(remote_dirs)
 
     @property
     def session_id(self):
