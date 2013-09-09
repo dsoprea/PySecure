@@ -75,8 +75,6 @@ List a directory:
     from pysecure.adapters.sftpa import SftpSession, SftpFile
 
     with SftpSession(ssh) as sftp:
-        # List entries in home directory.
-
         print("Name                         Size Perms    Owner\tGroup\n")
         for attributes in sftp.listdir('.'):
             print("%-40s %10d %.8o %s(%d)\t%s(%d)" % 
@@ -87,36 +85,38 @@ List a directory:
 
 Recurse a directory:
 
-    def dir_cb(path, entry):
-        full_path = ('%s/%s' % (path, entry.name))
-        print("DIR: %s" % (full_path))
+    with SftpSession(ssh) as sftp:
+        def dir_cb(path, entry):
+            full_path = ('%s/%s' % (path, entry.name))
+            print("DIR: %s" % (full_path))
 
-    def listing_cb(path, list_):
-        print("[%s]: (%d) files" % (path, len(list_)))
+        def listing_cb(path, list_):
+            print("[%s]: (%d) files" % (path, len(list_)))
 
-    sftp.recurse('Pictures', dir_cb, listing_cb)
+        sftp.recurse('Pictures', dir_cb, listing_cb)
 
 Read a file:
 
-    # To read a text file, line by line.
-
-    with SftpFile(sftp, 'text_file.txt') as sf:
-        i = 0
-        for data in sf:
-            stdout.write("> " + data)
-
-            if i >= 30:
-                break
-
-            i += 1
-
-    # To read a complete file (binary friendly). It could also be
-    # ready one chunk at a time.
-
-    with SftpFile(sftp, 'binary_file.dat') as sf:
-        buffer_ = sf.read()
-
-        print("Read (%d) bytes." % (len(buffer_)))
+    with SftpSession(ssh) as sftp:
+        with SftpFile(sftp, 'text_file.txt') as sf:
+            # Read through text-file, one line at a time.
+        
+            i = 0
+            for data in sf:
+                stdout.write("> " + data)
+    
+                if i >= 30:
+                    break
+    
+                i += 1
+    
+        # To read a complete file (binary friendly). It could also be
+        # read one chunk at a time.
+    
+        with SftpFile(sftp, 'binary_file.dat') as sf:
+            buffer_ = sf.read()
+    
+            print("Read (%d) bytes." % (len(buffer_)))
 
 
 Port-Forwarding Examples
