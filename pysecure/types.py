@@ -4,6 +4,11 @@ from ctypes import *
 from datetime import datetime
 
 from pysecure.constants import TIME_DATETIME_FORMAT
+from pysecure.constants.sftp import SSH_FILEXFER_TYPE_REGULAR, \
+                                    SSH_FILEXFER_TYPE_DIRECTORY, \
+                                    SSH_FILEXFER_TYPE_SYMLINK, \
+                                    SSH_FILEXFER_TYPE_SPECIAL, \
+                                    SSH_FILEXFER_TYPE_UNKNOWN
 
 c_mode_t = c_int
 c_uid_t = c_uint32
@@ -54,6 +59,26 @@ class _CSftpAttributesStruct(Structure):
 
         return ('<ATTR "%s" S=(%d) T=(%d) MT=[%s]>' % 
                 (self.name, self.size, self.type, mtime_phrase))
+
+    @property
+    def is_regular(self):
+        return self.type == SSH_FILEXFER_TYPE_REGULAR
+
+    @property
+    def is_directory(self):
+        return self.type == SSH_FILEXFER_TYPE_DIRECTORY
+
+    @property
+    def is_symlink(self):
+        return self.type == SSH_FILEXFER_TYPE_SYMLINK
+    
+    @property
+    def is_special(self):
+        return self.type == SSH_FILEXFER_TYPE_SPECIAL
+    
+    @property
+    def is_unknown_type(self):
+        return self.type == SSH_FILEXFER_TYPE_UNKNOWN
 
 _CSftpAttributes = POINTER(_CSftpAttributesStruct)
 

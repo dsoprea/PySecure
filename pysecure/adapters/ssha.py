@@ -37,8 +37,6 @@ from pysecure.calls.sshi import c_free, c_ssh_userauth_privatekey_file, \
 from pysecure.adapters.channela import SshChannel
 from pysecure.error import ssh_get_error, ssh_get_error_code
 
-# TODO: All errors should put the response from ssh_get_error in the message.
-
 def _ssh_options_set_string(ssh_session_int, type_, value):
     value_charp = c_char_p(value)
 

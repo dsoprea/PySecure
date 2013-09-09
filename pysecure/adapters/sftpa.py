@@ -378,6 +378,32 @@ class SftpSession(object):
     def listdir(self, path):
         return _sftp_listdir(self.__sftp_session_int, path)
 
+    def recurse(self, path, dir_cb, listing_cb, max_listing_size=0):
+        q = deque([path])
+        while q:
+            path = q.popleft()
+
+            entries = self.listdir(path)
+            collected = []
+            for entry in entries:
+                if entry.is_directory:
+                    if entry.name == '.' or entry.name == '..':
+                        continue
+
+                    dir_cb(path, entry)
+
+                    full_path = ('%s/%s' % (path, entry.name))
+                    q.append(full_path)
+                elif entry.is_regular:
+                    collected.append(entry)
+                    if max_listing_size > 0 and \
+                       max_listing_size <= len(collected):
+                        listing_cb(path, collected)
+                        collected = []
+
+            if max_listing_size == 0 or len(collected) > 0:
+                listing_cb(path, collected)
+
     @property
     def session_id(self):
         return self.__sftp_session_int

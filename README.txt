@@ -26,7 +26,7 @@ X Remote command (single commands).
 X Remote execution (shell session).
   Threading support.
   Support X11 forwarding.
-
+  Added SFTP "mirror" functionality.
 
 Dependencies
 ============
@@ -85,27 +85,38 @@ List a directory:
                    attributes.uid, attributes.group,
                    attributes.gid))
 
- Read a file:
+Recurse a directory:
 
-        # To read a text file, line by line.
+    def dir_cb(path, entry):
+        full_path = ('%s/%s' % (path, entry.name))
+        print("DIR: %s" % (full_path))
 
-        with SftpFile(sftp, 'text_file.txt') as sf:
-            i = 0
-            for data in sf:
-                stdout.write("> " + data)
+    def listing_cb(path, list_):
+        print("[%s]: (%d) files" % (path, len(list_)))
 
-                if i >= 30:
-                    break
+    sftp.recurse('Pictures', dir_cb, listing_cb)
 
-                i += 1
+Read a file:
 
-        # To read a complete file (binary friendly). It could also be
-        # ready one chunk at a time.
+    # To read a text file, line by line.
 
-        with SftpFile(sftp, 'binary_file.dat') as sf:
-            buffer_ = sf.read()
+    with SftpFile(sftp, 'text_file.txt') as sf:
+        i = 0
+        for data in sf:
+            stdout.write("> " + data)
 
-            print("Read (%d) bytes." % (len(buffer_)))
+            if i >= 30:
+                break
+
+            i += 1
+
+    # To read a complete file (binary friendly). It could also be
+    # ready one chunk at a time.
+
+    with SftpFile(sftp, 'binary_file.dat') as sf:
+        buffer_ = sf.read()
+
+        print("Read (%d) bytes." % (len(buffer_)))
 
 
 Port-Forwarding Examples
