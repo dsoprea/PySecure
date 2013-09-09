@@ -68,3 +68,8 @@ c_ssh_channel_is_eof = libssh.ssh_channel_is_eof
 c_ssh_channel_is_eof.argtypes = [c_ssh_channel]
 c_ssh_channel_is_eof.restype = c_int
 
+# int ssh_channel_read_nonblocking(ssh_channel channel, void *dest, uint32_t count, int is_stderr)
+c_ssh_channel_read_nonblocking = libssh.ssh_channel_read_nonblocking
+c_ssh_channel_read_nonblocking.argtypes = [c_ssh_channel, c_void_p, c_uint32, c_int]
+c_ssh_channel_read_nonblocking.restype = c_int
+

@@ -22,7 +22,8 @@ from pysecure.calls.channeli import c_ssh_channel_new, \
                                     c_ssh_channel_request_shell, \
                                     c_ssh_channel_request_pty, \
                                     c_ssh_channel_change_pty_size, \
-                                    c_ssh_channel_is_eof
+                                    c_ssh_channel_is_eof, \
+                                    c_ssh_channel_read_nonblocking
 
 def _ssh_channel_new(ssh_session_int):
     result = c_ssh_channel_new(ssh_session_int)
@@ -57,7 +58,7 @@ def _ssh_channel_write(ssh_channel_int, data):
         raise SshError("Channel write of (%d) bytes failed for length (%d) of "
                        "written data." % (data_len, sent_bytes))
 
-def _ssh_channel_read(ssh_channel_int, count):
+def _ssh_channel_read(ssh_channel_int, count, is_stderr):
     """Do a read on a channel."""
 
     buffer_ = create_string_buffer(count)
@@ -65,7 +66,7 @@ def _ssh_channel_read(ssh_channel_int, count):
         received_bytes = c_ssh_channel_read(ssh_channel_int, 
                                             cast(buffer_, c_void_p), 
                                             c_uint32(count),
-                                            0)
+                                            c_int(int(is_stderr)))
 
         if received_bytes == SSH_ERROR:
             raise SshError("Channel read failed.")
@@ -79,6 +80,18 @@ def _ssh_channel_read(ssh_channel_int, count):
             break
 
 # TODO: Where is the timeout configured for the read?
+    return buffer_.raw[0:received_bytes]
+
+def _ssh_channel_read_nonblocking(ssh_channel_int, count, is_stderr):
+    buffer_ = create_string_buffer(count)
+    received_bytes = c_ssh_channel_read_nonblocking(ssh_channel_int, 
+                                                    cast(buffer_, c_void_p), 
+                                                    c_uint32(count),
+                                                    c_int(int(is_stderr)))
+
+    if received_bytes == SSH_ERROR:
+        raise SshError("Channel read (non-blocking) failed.")
+
     return buffer_.raw[0:received_bytes]
 
 def _ssh_channel_free(ssh_channel_int):
@@ -131,6 +144,8 @@ def _ssh_channel_is_eof(ssh_channel):
 
     return bool(result)
 
+
+
 class SshChannel(object):
     def __init__(self, ssh_session, ssh_channel=None):
         self.__ssh_session_int = getattr(ssh_session, 
@@ -164,8 +179,13 @@ class SshChannel(object):
     def write(self, data):
         _ssh_channel_write(self.__ssh_channel_int, data)
 
-    def read(self, count):
-        return _ssh_channel_read(self.__ssh_channel_int, count)
+    def read(self, count, is_stderr=False):
+        return _ssh_channel_read(self.__ssh_channel_int, count, is_stderr)
+
+    def read_nonblocking(self, count, is_stderr=False):
+        return _ssh_channel_read_nonblocking(self.__ssh_channel_int, 
+                                             count, 
+                                             is_stderr)
 
     def send_eof(self):
         _ssh_channel_send_eof(self.__ssh_channel_int)
@@ -202,10 +222,6 @@ class RemoteShellProcessor(object):
     def __init__(self, ssh_session, block_size=DEFAULT_SHELL_READ_BLOCK_SIZE):
         logging.debug("Initializing RSP.")
 
-        if ssh_session.is_blocking() is True:
-            raise Exception("RemoteShellProcessor requires a non-blocking "
-                            "session.")
-
         self.__ssh_session = ssh_session
         self.__block_size = block_size
 
@@ -213,11 +229,7 @@ class RemoteShellProcessor(object):
 
         start_at = time()
         while self.__sc.is_open() and self.__sc.is_eof() is False:
-            try:
-                buffer_ = self.__sc.read(self.__block_size)
-            except SshNonblockingTryAgainException:
-                buffer_ = ''
-
+            buffer_ = self.__sc.read_nonblocking(self.__block_size)
             if buffer_ == '':
                 delta = time() - start_at
                 if delta * 1000 > NONBLOCK_READ_TIMEOUT_MS:

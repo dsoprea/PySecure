@@ -30,8 +30,9 @@ from pysecure.calls.sshi import c_free, c_ssh_userauth_privatekey_file, \
                                 c_ssh_finalize, c_ssh_userauth_password, \
                                 c_ssh_get_error, c_ssh_forward_listen, \
                                 c_ssh_forward_accept, c_ssh_key_new, \
-                                c_ssh_userauth_publickey, c_ssh_key_free, \
-                                c_ssh_set_blocking, c_ssh_is_blocking
+                                c_ssh_userauth_publickey, c_ssh_key_free
+#                                c_ssh_set_blocking, 
+#                                c_ssh_is_blocking
 
 from pysecure.adapters.channela import SshChannel
 
@@ -279,8 +280,8 @@ def ssh_key_import_private(ssh_session_int, filename, passphrase=None):
 
     return key
 
-def _ssh_set_blocking(ssh_session_int, blocking):
-    c_ssh_set_blocking(ssh_session_int, c_int(blocking))
+#def _ssh_set_blocking(ssh_session_int, blocking):
+#    c_ssh_set_blocking(ssh_session_int, c_int(blocking))
 
 def _ssh_is_blocking(ssh_session_int):
     result = c_ssh_is_blocking(ssh_session_int)
@@ -311,15 +312,14 @@ class SshSystem(object):
         logging.debug("Cleaning-up SSH system.")
         _ssh_finalize
 
-
 class SshSession(object):
-    def __init__(self, blocking=True, **options):
+    def __init__(self, **options):#blocking=True,
         self.__options = options
 
         self.__ssh_session_int = _ssh_new()
         logging.debug("Created SSH session: %d" % (self.__ssh_session_int))
 
-        self.set_blocking(blocking)
+#        self.set_blocking(blocking)
 
     def __enter__(self):
         for k, v in self.__options.items():
@@ -398,8 +398,8 @@ class SshSession(object):
 
             return buffer_.getvalue()
 
-    def set_blocking(self, blocking):
-        _ssh_set_blocking(self.__ssh_session_int, int(blocking))
+#    def set_blocking(self, blocking):
+#        _ssh_set_blocking(self.__ssh_session_int, int(blocking))
 
     def is_blocking(self):
         return _ssh_is_blocking(self.__ssh_session_int)

@@ -25,6 +25,7 @@ X Reverse port forwarding.
 X Remote command (single commands).
 X Remote execution (shell session).
   Threading support.
+  Support X11 forwarding.
 
 
 Dependencies
