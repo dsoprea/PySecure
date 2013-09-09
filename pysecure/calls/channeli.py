@@ -73,3 +73,13 @@ c_ssh_channel_read_nonblocking = libssh.ssh_channel_read_nonblocking
 c_ssh_channel_read_nonblocking.argtypes = [c_ssh_channel, c_void_p, c_uint32, c_int]
 c_ssh_channel_read_nonblocking.restype = c_int
 
+# int ssh_channel_request_env(ssh_channel channel, const char *name, const char *value)
+c_ssh_channel_request_env = libssh.ssh_channel_request_env
+c_ssh_channel_request_env.argtypes = [c_ssh_channel, c_char_p, c_char_p]
+c_ssh_channel_request_env.restype = c_int
+
+# ssh_session ssh_channel_get_session(ssh_channel channel)
+c_ssh_channel_get_session = libssh.ssh_channel_get_session
+c_ssh_channel_get_session.argtypes = [c_ssh_channel]
+c_ssh_channel_get_session.restyppe = c_ssh_session
+

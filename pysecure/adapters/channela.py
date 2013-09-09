@@ -23,17 +23,28 @@ from pysecure.calls.channeli import c_ssh_channel_new, \
                                     c_ssh_channel_request_pty, \
                                     c_ssh_channel_change_pty_size, \
                                     c_ssh_channel_is_eof, \
-                                    c_ssh_channel_read_nonblocking
+                                    c_ssh_channel_read_nonblocking, \
+                                    c_ssh_channel_request_env, \
+                                    c_ssh_channel_get_session
+                                    
+from pysecure.error import ssh_get_error, ssh_get_error_code
 
 def _ssh_channel_new(ssh_session_int):
+    logging.debug("Opening channel on session.")
+
     result = c_ssh_channel_new(ssh_session_int)
     if result is None:
-        raise SshError("Could not open channel.")
+        ssh_session_int = _ssh_channel_get_session(ssh_channel_int)
+        error = ssh_get_error(ssh_session_int)
+
+        raise SshError("Could not open channel: %s" % (error))
 
     return result
 
 def _ssh_channel_open_forward(ssh_channel_int, host_remote, port_remote, 
                               host_source, port_local):
+
+    logging.debug("Requesting forward on channel.")
 
     result = c_ssh_channel_open_forward(ssh_channel_int, 
                                         c_char_p(host_remote), 
@@ -44,7 +55,10 @@ def _ssh_channel_open_forward(ssh_channel_int, host_remote, port_remote,
     if result == SSH_AGAIN:
         raise SshNonblockingTryAgainException()
     elif result != SSH_OK:
-        raise SshError("Forward failed.")
+        ssh_session_int = _ssh_channel_get_session(ssh_channel_int)
+        error = ssh_get_error(ssh_session_int)
+
+        raise SshError("Forward failed: %s" % (error))
 
 def _ssh_channel_write(ssh_channel_int, data):
     data_len = len(data)
@@ -53,7 +67,10 @@ def _ssh_channel_write(ssh_channel_int, data):
                                      c_uint32(data_len))
 
     if sent_bytes == SSH_ERROR:
-        raise SshError("Channel write failed.")
+        ssh_session_int = _ssh_channel_get_session(ssh_channel_int)
+        error = ssh_get_error(ssh_session_int)
+
+        raise SshError("Channel write failed: %s" % (error))
     elif sent_bytes != data_len:
         raise SshError("Channel write of (%d) bytes failed for length (%d) of "
                        "written data." % (data_len, sent_bytes))
@@ -69,7 +86,10 @@ def _ssh_channel_read(ssh_channel_int, count, is_stderr):
                                             c_int(int(is_stderr)))
 
         if received_bytes == SSH_ERROR:
-            raise SshError("Channel read failed.")
+            ssh_session_int = _ssh_channel_get_session(ssh_channel_int)
+            error = ssh_get_error(ssh_session_int)
+
+            raise SshError("Channel read failed: %s" % (error))
 
         # BUG: We're not using the nonblocking variant, but this can still 
         # return SSH_AGAIN due to that call's broken dependencies.
@@ -90,60 +110,112 @@ def _ssh_channel_read_nonblocking(ssh_channel_int, count, is_stderr):
                                                     c_int(int(is_stderr)))
 
     if received_bytes == SSH_ERROR:
-        raise SshError("Channel read (non-blocking) failed.")
+        ssh_session_int = _ssh_channel_get_session(ssh_channel_int)
+        error = ssh_get_error(ssh_session_int)
+
+        raise SshError("Channel read (non-blocking) failed: %s" % (error))
 
     return buffer_.raw[0:received_bytes]
 
 def _ssh_channel_free(ssh_channel_int):
+    logging.debug("Freeing channel (%d)." % (ssh_channel_int))
+
     c_ssh_channel_free(ssh_channel_int)
 
 def _ssh_channel_send_eof(ssh_channel_int):
     result = c_ssh_channel_send_eof(ssh_channel_int)
     if result != SSH_OK:
-        raise SshError("Could not send EOF.")
+        ssh_session_int = _ssh_channel_get_session(ssh_channel_int)
+        error = ssh_get_error(ssh_session_int)
+
+        raise SshError("Could not send EOF: %s" % (error))
 
 def _ssh_channel_is_open(ssh_channel_int):
     result = c_ssh_channel_is_open(ssh_channel_int)
     return (result != 0)
 
-def _ssh_channel_open_session(ssh_channel):
-    result = c_ssh_channel_open_session(ssh_channel)
+def _ssh_channel_open_session(ssh_channel_int):
+    logging.debug("Request channel open-session.")
+
+    result = c_ssh_channel_open_session(ssh_channel_int)
     if result == SSH_AGAIN:
         raise SshNonblockingTryAgainException()
     elif result != SSH_OK:
-        raise SshError("Could not open session on channel.")
+        ssh_session_int = _ssh_channel_get_session(ssh_channel_int)
+        error = ssh_get_error(ssh_session_int)
 
-def _ssh_channel_request_exec(ssh_channel, cmd):
-    result = c_ssh_channel_request_exec(ssh_channel, c_char_p(cmd))
+        raise SshError("Could not open session on channel: %s" % (error))
+
+def _ssh_channel_request_exec(ssh_channel_int, cmd):
+    logging.debug("Requesting channel exec.")
+
+    result = c_ssh_channel_request_exec(ssh_channel_int, c_char_p(cmd))
     if result == SSH_AGAIN:
         raise SshNonblockingTryAgainException()
     elif result != SSH_OK:
-        raise SshError("Could not execute shell request on channel.")
+        ssh_session_int = _ssh_channel_get_session(ssh_channel_int)
+        error = ssh_get_error(ssh_session_int)
 
-def _ssh_channel_request_shell(ssh_channel):
-    result = c_ssh_channel_request_shell(ssh_channel)
+        raise SshError("Could not execute shell request on channel: %s" % 
+                       (error))
+
+def _ssh_channel_request_shell(ssh_channel_int):
+    logging.debug("Requesting channel shell.")
+
+    result = c_ssh_channel_request_shell(ssh_channel_int)
     if result == SSH_AGAIN:
         raise SshNonblockingTryAgainException()
     elif result != SSH_OK:
-        raise SshError("Shell request failed.")
+        ssh_session_int = _ssh_channel_get_session(ssh_channel_int)
+        error = ssh_get_error(ssh_session_int)
 
-def _ssh_channel_request_pty(ssh_channel):
-    result = c_ssh_channel_request_pty(ssh_channel)
+        raise SshError("Shell request failed: %s" % (error))
+
+def _ssh_channel_request_pty(ssh_channel_int):
+    logging.debug("Requesting channel PTY.")
+
+    result = c_ssh_channel_request_pty(ssh_channel_int)
     if result == SSH_AGAIN:
         raise SshNonblockingTryAgainException()
     elif result != SSH_OK:
-        raise SshError("PTY request failed.")
+        ssh_session_int = _ssh_channel_get_session(ssh_channel_int)
+        error = ssh_get_error(ssh_session_int)
 
-def _ssh_channel_change_pty_size(ssh_channel, col, row):
-    result = c_ssh_channel_change_pty_size(ssh_channel, c_int(col), c_int(row))
+        raise SshError("PTY request failed: %s" % (error))
+
+def _ssh_channel_change_pty_size(ssh_channel_int, col, row):
+    result = c_ssh_channel_change_pty_size(ssh_channel_int, c_int(col), c_int(row))
     if result != SSH_OK:
-        raise SshError("PTY size change failed.")
+        ssh_session_int = _ssh_channel_get_session(ssh_channel_int)
+        error = ssh_get_error(ssh_session_int)
 
-def _ssh_channel_is_eof(ssh_channel):
-    result = c_ssh_channel_is_eof(ssh_channel)
+        raise SshError("PTY size change failed: %s" % (error))
+
+def _ssh_channel_is_eof(ssh_channel_int):
+    result = c_ssh_channel_is_eof(ssh_channel_int)
 
     return bool(result)
 
+def _ssh_channel_request_env(ssh_channel_int, name, value):
+    logging.debug("Setting remote environment variable [%s] to [%s]." % 
+                  (name, value))
+# TODO: We haven't been able to get this to work. We're getting a "Channel 
+#       request env failed" error. We're reasonably sure that the server just
+#       may not support it due to security or otherwise.
+    result = c_ssh_channel_request_env(ssh_channel_int, 
+                                       c_char_p(name), 
+                                       c_char_p(value))
+
+    if result == SSH_AGAIN:
+        raise SshNonblockingTryAgainException()
+    elif result != SSH_OK:
+        ssh_session_int = _ssh_channel_get_session(ssh_channel_int)
+        error = ssh_get_error(ssh_session_int)
+
+        raise SshError("Request-env failed: %s" % (error))
+
+def _ssh_channel_get_session(ssh_channel_int):
+    return c_ssh_channel_get_session(ssh_channel_int)
 
 
 class SshChannel(object):
@@ -216,6 +288,9 @@ class SshChannel(object):
 
     def is_eof(self):
         return _ssh_channel_is_eof(self.__ssh_channel_int)
+    
+    def request_env(self, name, value):
+        return _ssh_channel_request_env(self.__ssh_channel_int, name, value)
 
 
 class RemoteShellProcessor(object):
@@ -281,11 +356,11 @@ class RemoteShellProcessor(object):
         logging.debug("Starting RSP shell.")
 
         with SshChannel(self.__ssh_session) as sc:
-            sync(sc.open_session)
-            sync(sc.request_pty)
+            sc.open_session()
 
+            sc.request_pty()
             sc.change_pty_size(cols, rows)
-            sync(sc.request_shell)
+            sc.request_shell()
 
             welcome_stream = StringIO()
             def welcome_received_cb(data):

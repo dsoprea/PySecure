@@ -22,19 +22,20 @@ from pysecure.constants.ssh import SSH_OK, SSH_ERROR, SSH_AGAIN, \
                                    SSH_SERVER_FILE_NOT_FOUND
 
 from pysecure.calls.sshi import c_free, c_ssh_userauth_privatekey_file, \
-                                c_ssh_get_error_code, c_ssh_write_knownhost, \
-                                c_ssh_get_pubkey_hash, c_ssh_is_server_known, \
-                                c_ssh_connect, c_ssh_disconnect, \
-                                c_ssh_print_hexa, c_ssh_get_hexa, c_ssh_free, \
-                                c_ssh_new, c_ssh_options_set, c_ssh_init, \
+                                c_ssh_write_knownhost, c_ssh_get_pubkey_hash, \
+                                c_ssh_is_server_known, c_ssh_connect, \
+                                c_ssh_disconnect, c_ssh_print_hexa, \
+                                c_ssh_get_hexa, c_ssh_free, c_ssh_new, \
+                                c_ssh_options_set, c_ssh_init, \
                                 c_ssh_finalize, c_ssh_userauth_password, \
-                                c_ssh_get_error, c_ssh_forward_listen, \
-                                c_ssh_forward_accept, c_ssh_key_new, \
-                                c_ssh_userauth_publickey, c_ssh_key_free
+                                c_ssh_forward_listen, c_ssh_forward_accept, \
+                                c_ssh_key_new, c_ssh_userauth_publickey, \
+                                c_ssh_key_free
 #                                c_ssh_set_blocking, 
 #                                c_ssh_is_blocking
 
 from pysecure.adapters.channela import SshChannel
+from pysecure.error import ssh_get_error, ssh_get_error_code
 
 # TODO: All errors should put the response from ssh_get_error in the message.
 
@@ -46,8 +47,9 @@ def _ssh_options_set_string(ssh_session_int, type_, value):
                                cast(value_charp, c_void_p))
 
     if result < 0:
-        raise SshError("Could not set STRING option (%d) to [%s]." % 
-                       (type_, value))
+        error = ssh_get_error(ssh_session_int)
+        raise SshError("Could not set STRING option (%d) to [%s]: %s" % 
+                       (type_, value, error))
 
 def _ssh_options_set_uint(ssh_session_int, type_, value):
     value_uint = c_uint(value)
@@ -56,8 +58,9 @@ def _ssh_options_set_uint(ssh_session_int, type_, value):
                                cast(byref(value_uint), c_void_p))
 
     if result < 0:
-        raise SshError("Could not set UINT option (%d) to (%d)." % 
-                       (type_, value))
+        error = ssh_get_error(ssh_session_int)
+        raise SshError("Could not set UINT option (%d) to (%d): %s" % 
+                       (type_, value, error))
 
 def _ssh_options_set_int(ssh_session_int, type_, value):
     value_int = c_int(value)
@@ -66,8 +69,9 @@ def _ssh_options_set_int(ssh_session_int, type_, value):
                                cast(POINTER(value_int), c_void_p))
 
     if result < 0:
-        raise SshError("Could not set INT option (%d) to (%d)." % 
-                       (type_, value))
+        error = ssh_get_error(ssh_session_int)
+        raise SshError("Could not set INT option (%d) to (%d): %s" % 
+                       (type_, value, error))
 
 def _ssh_options_set_long(ssh_session_int, type_, value):
     value_long = c_long(value)
@@ -76,14 +80,9 @@ def _ssh_options_set_long(ssh_session_int, type_, value):
                                cast(POINTER(value_long), c_void_p))
 
     if result < 0:
-        raise SshError("Could not set LONG option (%d) to (%d)." % 
-                       (type_, value))
-
-def ssh_get_error_code(ssh_session_int):
-    return c_ssh_get_error_code(ssh_session_int)
-
-def ssh_get_error(ssh_session_int):
-    return c_ssh_get_error(ssh_session_int)
+        error = ssh_get_error(ssh_session_int)
+        raise SshError("Could not set LONG option (%d) to (%d): %s" % 
+                       (type_, value, error))
 
 def _ssh_new():
     ssh_session_int = c_ssh_new()
@@ -100,7 +99,8 @@ def _ssh_connect(ssh_session_int):
     if result == SSH_AGAIN:
         raise SshNonblockingTryAgainException()
     elif result != SSH_OK:
-        raise SshError("Connect failed.")
+        error = ssh_get_error(ssh_session_int)
+        raise SshError("Connect failed: %s" % (error))
 
 def _ssh_disconnect(ssh_session_int):
     c_ssh_disconnect(ssh_session_int)
@@ -171,7 +171,9 @@ def _ssh_get_pubkey_hash(ssh_session_int):
     hash_ = POINTER(c_ubyte)()
     hlen = c_ssh_get_pubkey_hash(ssh_session_int, byref(hash_))
     if hlen < 0:
-        raise SshError("Could not build public-key hash.")
+        error = ssh_get_error(ssh_session_int)
+        raise SshError("Could not build public-key hash: %s" % 
+                       (ssh_session_int))
 
     return (hash_, hlen)
 
@@ -180,7 +182,8 @@ def _ssh_write_knownhost(ssh_session_int):
 
     result = c_ssh_write_knownhost(ssh_session_int)
     if result == SSH_ERROR:
-        raise SshError("Could not update known-hosts file.")
+        error = ssh_get_error(ssh_session_int)
+        raise SshError("Could not update known-hosts file: %s" % (error))
 
 def _check_auth_response(result):
     if result == SSH_AUTH_ERROR:
@@ -238,7 +241,8 @@ def _ssh_forward_listen(ssh_session_int, address, port):
     if result == SSH_AGAIN:
         raise SshNonblockingTryAgainException()
     elif result != SSH_OK:
-        raise SshError("Forward-listen failed.")
+        error = ssh_get_error(ssh_session_int)
+        raise SshError("Forward-listen failed: %s" % (error))
 
     return bound_port.value
 
@@ -276,7 +280,9 @@ def ssh_key_import_private(ssh_session_int, filename, passphrase=None):
                                       c_char_p(passphrase))
 
     if result != SSH_OK:
-        raise SshError("Could not import private-key from [%s]." % (filename))
+        error = ssh_get_error(ssh_session_int)
+        raise SshError("Could not import private-key from [%s]: %s" % 
+                       (filename, error))
 
     return key
 
@@ -403,6 +409,12 @@ class SshSession(object):
 
     def is_blocking(self):
         return _ssh_is_blocking(self.__ssh_session_int)
+
+    def get_error_code(self):
+        return ssh_get_error_code(self.__ssh_session_int)
+
+    def get_error(self):
+        return ssh_get_error(self.__ssh_session_int)
 
     @property
     def session_id(self):
