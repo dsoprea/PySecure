@@ -146,6 +146,8 @@ def _ssh_channel_open_session(ssh_channel_int):
 
         raise SshError("Could not open session on channel: %s" % (error))
 
+    logging.debug("Channel open-session successful.")
+
 def _ssh_channel_request_exec(ssh_channel_int, cmd):
     logging.debug("Requesting channel exec.")
 
@@ -159,6 +161,8 @@ def _ssh_channel_request_exec(ssh_channel_int, cmd):
         raise SshError("Could not execute shell request on channel: %s" % 
                        (error))
 
+    logging.debug("Channel-exec successful.")
+
 def _ssh_channel_request_shell(ssh_channel_int):
     logging.debug("Requesting channel shell.")
 
@@ -171,6 +175,8 @@ def _ssh_channel_request_shell(ssh_channel_int):
 
         raise SshError("Shell request failed: %s" % (error))
 
+    logging.debug("Channel-shell request successful.")
+
 def _ssh_channel_request_pty(ssh_channel_int):
     logging.debug("Requesting channel PTY.")
 
@@ -182,6 +188,8 @@ def _ssh_channel_request_pty(ssh_channel_int):
         error = ssh_get_error(ssh_session_int)
 
         raise SshError("PTY request failed: %s" % (error))
+
+    logging.debug("Channel PTY request successful.")
 
 def _ssh_channel_change_pty_size(ssh_channel_int, col, row):
     result = c_ssh_channel_change_pty_size(ssh_channel_int, c_int(col), c_int(row))
@@ -301,6 +309,7 @@ class RemoteShellProcessor(object):
         self.__block_size = block_size
 
     def __wait_on_output(self, data_cb):
+        logging.debug("Reading chunked output.")
 
         start_at = time()
         while self.__sc.is_open() and self.__sc.is_eof() is False:
@@ -316,6 +325,7 @@ class RemoteShellProcessor(object):
             start_at = time()
 
     def __wait_on_output_all(self, whole_data_cb):
+        logging.debug("Reading complete output.")
 
         received = StringIO()
         def data_cb(buffer_):

@@ -1,19 +1,22 @@
 import logging
 
 from datetime import datetime
-from os import SEEK_SET, SEEK_CUR, SEEK_END, mkdir, unlink
+from os import SEEK_SET, SEEK_CUR, SEEK_END, mkdir, unlink, utime
 from ctypes import create_string_buffer, cast, c_void_p, c_int, c_char_p, \
                    c_size_t
 from collections import deque
 from cStringIO import StringIO
 from shutil import rmtree
+from time import mktime
 
 from pysecure.constants.ssh import SSH_NO_ERROR
 from pysecure.constants.sftp import O_RDONLY, O_WRONLY, O_RDWR, O_CREAT, \
                                     O_TRUNC
-
+from pysecure.types import CTimeval
 from pysecure.constants import SERVER_RESPONSES
-from pysecure.config import DEFAULT_CREATE_MODE, MAX_MIRROR_LISTING_CHUNK_SIZE
+from pysecure.config import DEFAULT_CREATE_MODE, \
+                            MAX_MIRROR_LISTING_CHUNK_SIZE, \
+                            MAX_MIRROR_WRITE_CHUNK_SIZE
 from pysecure.calls.sftpi import c_sftp_get_error, c_sftp_new, c_sftp_init, \
                                  c_sftp_open, c_sftp_write, c_sftp_free, \
                                  c_sftp_opendir, c_sftp_closedir, \
@@ -22,7 +25,7 @@ from pysecure.calls.sftpi import c_sftp_get_error, c_sftp_new, c_sftp_init, \
                                  c_sftp_read, c_sftp_fstat, c_sftp_rewind, \
                                  c_sftp_close, c_sftp_rename, c_sftp_chmod, \
                                  c_sftp_chown, c_sftp_mkdir, c_sftp_rmdir, \
-                                 c_sftp_stat
+                                 c_sftp_stat, c_sftp_utimes
 
 from pysecure.exceptions import SftpError
 from pysecure.utility import local_recurse
@@ -328,12 +331,45 @@ def _sftp_listdir(sftp_session_int, path):
             raise SftpError("We're done iterating the directory, but it's not "
                             "at EOF.")
 
+def _sftp_utimes(sftp_session_int, file_path, atime_epoch, mtime_epoch):
+    times = CTimeval() * 2
+
+    times[0].tv_sec = atime_epoch
+    times[0].tv_usec = 0
+    times[1].tv_sec = mtime_epoch
+    times[1].tv_usec = 0
+
+    result = c_sftp_utimes(sftp_session_int, 
+                           c_char_p(filepath), 
+                           byref(times))
+
+    if result < 0:
+        raise SftpError("Times updated of [%s] failed." % (file_path))
+
+
+def _sftp_utimes_dt(sftp_session_int, file_path, atime_dt, mtime_dt):
+    times = CTimeval() * 2
+
+    times[0].tv_sec = mktime(atime_dt.timetuple())
+    times[0].tv_usec = 0
+    times[1].tv_sec = mktime(mtime_dt.timetuple())
+    times[1].tv_usec = 0
+
+    result = c_sftp_utimes(sftp_session_int, 
+                           c_char_p(filepath), 
+                           byref(times))
+
+    if result < 0:
+        raise SftpError("Times updated of [%s] failed." % (file_path))
+
 
 class SftpSession(object):
     def __init__(self, ssh_session):
         self.__ssh_session_int = getattr(ssh_session, 
                                          'session_id', 
                                          ssh_session)
+        self.__log = logging.getLogger('SSH_SESSION(%s)' % 
+                                       (self.__ssh_session_int))
 
     def __enter__(self):
         self.__sftp_session_int = _sftp_new(self.__ssh_session_int)
@@ -420,12 +456,27 @@ class SftpSession(object):
             if listing_cb is not None and max_listing_size == 0 or len(collected) > 0:
                 listing_cb(path, collected)
 
-    def write_to_local(self, filepath_from, filepath_to, set_mtime=True):
+    def write_to_local(self, filepath_from, filepath_to, mtime_dt=None):
         """Open a remote file and write it locally."""
-# TODO: Finish.
-# TODO: Make sure to observe set_mtime.
-        raise NotImplementedError()
 
+        self.__log.debug("Writing [%s] -> [%s]." % (filepath_from, 
+                                                    filepath_to))
+
+        with SftpFile(sftp, filepath_from, 'r') as sf_from:
+            with SftpFile(sftp, filepath_to, 'w') as sf_to:
+                while 1:
+                    part = sf_from.read(MAX_MIRROR_WRITE_CHUNK_SIZE)
+                    sf_to.write(part)
+
+                    if len(part) < MAX_MIRROR_WRITE_CHUNK_SIZE:
+                        break
+
+        if mtime_dt is None:
+            mtime_dt = datetime.now()
+
+        mtime_epoch = mktime(mtime_dt.timetuple())
+        utime(filepath_to, (mtime_epoch, mtime_epoch))
+    
     def mirror(self, path_from, path_to):
         """Recursively mirror the contents of "path_from" into "path_to"."""
     
@@ -453,14 +504,14 @@ class SftpSession(object):
             pass
 
         local_dirs = set()
-        def local_dir_cb(parent_path, full_path, entry):
-            local_dirs.add(entry.name)
+        def local_dir_cb(parent_path, full_path, filename):
+            local_dirs.add(filename)
         
         local_entites = set()
         local_files = set()
         def local_listing_cb(parent_path, listing):
-            for (file_path, entry) in listing:
-                entity = (entry.name, entry.modified_time, entry.size)
+            for file_path in listing:
+                entity = (entry.name, int(entry.modified_time), entry.size)
                 local_entities.add(entity)
                 local_files.add(entry.name)
 
@@ -522,16 +573,34 @@ class SftpSession(object):
             filepath_to = ('%s/%s' % (path_to, name))
 
             if entry.is_regular:
-                self.write_to_local(filepath_from, filepath_to)
+                self.write_to_local(filepath_from, 
+                                    filepath_to, 
+                                    entry.modified_time_dt)
+
             elif entry.is_symlink:
-# TODO: Finish.
-                raise NotImplementedError()
+                linked_to = self.readlink(filepath_to)
+            
+                # filepath_to: The physical file.
+                # linked_to: The target.
+                self.symlink(linked_to, filepath_to)
+
             elif entry.is_special:
 # TODO: Finish.
                 raise NotImplementedError()
 
         return list(remote_dirs)
 
+    def utimes(self, file_path, atime_epoch, mtime_epoch):
+# TODO: Test.
+        _sftp_utimes(self.__sftp_session_int, 
+                     file_path, 
+                     atime_epoch, 
+                     mtime_epoch)
+
+    def utimes_dt(self, file_path, atime_dt, mtime_dt):
+# TODO: Test.
+        _sftp_utimes_dt(sftp_session_int, file_path, atime_dt, mtime_dt)
+        
     @property
     def session_id(self):
         return self.__sftp_session_int
@@ -934,5 +1003,4 @@ class SftpFileObject(object):
 # c_sftp_server_version
 # c_sftp_statvfs
 # c_sftp_statvfs_free
-# c_sftp_utimes
 
