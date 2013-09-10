@@ -2,11 +2,11 @@ import logging
 
 from pysecure import log_config
 from pysecure.adapters.ssha import SshSession, SshConnect, SshSystem, \
-                                   PublicKeyHash
+                                   PublicKeyHash, ssh_pki_import_privkey_file
 from pysecure.adapters.sftpa import SftpSession, SftpFile
 
 user = 'dustin'
-host = 'localhost'
+host = 'dustinplex'
 key_filepath = '/home/dustin/.ssh/id_dsa'
 verbosity = 0
 
@@ -17,7 +17,10 @@ def connect_ssh(ssh_cb):
                 logging.debug("Ready to authenticate.")
 
                 ssh.is_server_known(allow_new=True)
-                ssh.userauth_privatekey_file(None, key_filepath, None)
+                
+                key = ssh_pki_import_privkey_file(key_filepath, None)
+                ssh.userauth_publickey(user, key)
+#                ssh.userauth_password(user, 'abc')
 
                 ssh_cb(ssh)
 

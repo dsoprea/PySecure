@@ -125,3 +125,8 @@ c_ssh_is_blocking = libssh.ssh_is_blocking
 c_ssh_is_blocking.argtypes = [c_ssh_session]
 c_ssh_is_blocking.restype = c_int
 
+# int ssh_pki_import_privkey_file(const char *filename, const char *passphrase, ssh_auth_callback auth_fn, void *auth_data, ssh_key *pkey)
+c_ssh_pki_import_privkey_file = libssh.ssh_pki_import_privkey_file
+c_ssh_pki_import_privkey_file.argtypes = [c_char_p, c_char_p, c_void_p, c_void_p, POINTER(c_ssh_key)]
+c_ssh_pki_import_privkey_file.restype = c_int
+

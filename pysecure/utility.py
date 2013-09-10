@@ -1,6 +1,7 @@
 from sys import stdout
 from collections import deque
-from os import listdir
+from os import listdir, stat
+from os.path import basename, isfile, isdir
 
 from pysecure.exceptions import SshNonblockingTryAgainException
 
@@ -73,22 +74,25 @@ def local_recurse(path, dir_cb, listing_cb, max_listing_size=0,
 
         entries = listdir(path)
         collected = []
-        for entry in entries:
-            file_path = ('%s/%s' % (path, entry.name))
+        for name in entries:
+            file_path = ('%s/%s' % (path, name))
 
-            if entry.is_directory:
-                if entry.name == '.' or entry.name == '..':
+            attr = stat(file_path)
+            entity = (name, int(attr.st_mtime), attr.st_size)
+
+            if isdir(file_path):
+                if name == '.' or name == '..':
                     continue
 
                 if dir_cb is not None:
-                    dir_cb(path, file_path, entry)
+                    dir_cb(path, file_path, name)
 
                 new_depth = current_depth + 1
                 
                 if max_depth is not None and max_depth >= new_depth:
                     q.append((file_path, new_depth))
-            elif entry.is_regular and listing_cb is not None:
-                collected.append((file_path, entry))
+            elif isfile(file_path) and listing_cb is not None:
+                collected.append((file_path, name))
                 if max_listing_size > 0 and \
                    max_listing_size <= len(collected):
                     listing_cb(path, collected)

@@ -9,7 +9,8 @@ from pysecure.exceptions import SshError, SshLoginError, SshHostKeyException, \
                                 SshTimeoutException
 
 from pysecure.config import DEFAULT_EXECUTE_READ_BLOCK_SIZE
-from pysecure.constants.ssh import SSH_OK, SSH_ERROR, SSH_AGAIN, \
+from pysecure.types import c_ssh_key
+from pysecure.constants.ssh import SSH_OK, SSH_ERROR, SSH_AGAIN, SSH_EOF, \
                                    \
                                    SSH_AUTH_ERROR, SSH_AUTH_DENIED, \
                                    SSH_AUTH_PARTIAL, SSH_AUTH_AGAIN, \
@@ -21,7 +22,7 @@ from pysecure.constants.ssh import SSH_OK, SSH_ERROR, SSH_AGAIN, \
                                    SSH_SERVER_FOUND_OTHER, SSH_OPTIONS, \
                                    SSH_SERVER_FILE_NOT_FOUND
 
-from pysecure.calls.sshi import c_free, c_ssh_userauth_privatekey_file, \
+from pysecure.calls.sshi import c_free, c_ssh_pki_import_privkey_file, \
                                 c_ssh_write_knownhost, c_ssh_get_pubkey_hash, \
                                 c_ssh_is_server_known, c_ssh_connect, \
                                 c_ssh_disconnect, c_ssh_print_hexa, \
@@ -33,6 +34,7 @@ from pysecure.calls.sshi import c_free, c_ssh_userauth_privatekey_file, \
                                 c_ssh_key_free
 #                                c_ssh_set_blocking, 
 #                                c_ssh_is_blocking
+
 
 from pysecure.adapters.channela import SshChannel
 from pysecure.error import ssh_get_error, ssh_get_error_code
@@ -165,21 +167,21 @@ def _ssh_get_hexa(hash_, hlen):
 
     return hexa
 
-def _ssh_get_pubkey_hash(ssh_session_int):
-    hash_ = POINTER(c_ubyte)()
-    hlen = c_ssh_get_pubkey_hash(ssh_session_int, byref(hash_))
-    if hlen < 0:
-        error = ssh_get_error(ssh_session_int)
-        raise SshError("Could not build public-key hash: %s" % 
-                       (ssh_session_int))
-
-    return (hash_, hlen)
+#def _ssh_get_pubkey_hash(ssh_session_int):
+#    hash_ = POINTER(c_ubyte)()
+#    hlen = c_ssh_get_pubkey_hash(ssh_session_int, byref(hash_))
+#    if hlen < 0:
+#        error = ssh_get_error(ssh_session_int)
+#        raise SshError("Could not build public-key hash: %s" % 
+#                       (ssh_session_int))
+#
+#    return (hash_, hlen)
 
 def _ssh_write_knownhost(ssh_session_int):
     logging.debug("Updating known-hosts file.")
 
     result = c_ssh_write_knownhost(ssh_session_int)
-    if result == SSH_ERROR:
+    if result != SSH_OK:
         error = ssh_get_error(ssh_session_int)
         raise SshError("Could not update known-hosts file: %s" % (error))
 
@@ -259,30 +261,53 @@ def _ssh_forward_accept(ssh_session_int, timeout_ms):
     return ssh_channel
 
 def _ssh_key_new():
-    result = c_ssh_key_new()
-    if result is None:
+    key = c_ssh_key_new()
+    if key is None:
         raise SshError("Could not create empty key.")
 
-def ssh_userauth_publickey(ssh_session_int, username, privkey):
+    return key
+
+def _ssh_userauth_publickey(ssh_session_int, username, priv_key):
     result = c_ssh_userauth_publickey(ssh_session_int, 
                                       c_char_p(username), 
                                       priv_key)
 
     _check_auth_response(result)
 
-def ssh_key_import_private(ssh_session_int, filename, passphrase=None):
-    key = ssh_key_new()
-    result = c_ssh_key_import_private(key,
-                                      ssh_session_int, 
-                                      c_char_p(filename), 
-                                      c_char_p(passphrase))
+def ssh_pki_import_privkey_file(file_path, pass_phrase=None):
+    logging.debug("Importing private-key from [%s]." % (file_path))
 
-    if result != SSH_OK:
-        error = ssh_get_error(ssh_session_int)
-        raise SshError("Could not import private-key from [%s]: %s" % 
-                       (filename, error))
+    # It looks like we don't have to do an officie ssh_key_new().
+# TODO: Do we have to free this after the import?
+    key = c_ssh_key()
+    result = c_ssh_pki_import_privkey_file(c_char_p(file_path), 
+                                           c_char_p(pass_phrase), 
+                                           None, 
+                                           None, 
+                                           byref(key))
+
+    if result == SSH_EOF:
+        raise SshError("Key file [%s] does not exist or could not be read." % 
+                       (file_path))
+    elif result != SSH_OK:
+        raise SshError("Could not import key.")
 
     return key
+
+
+#def ssh_key_import_private(ssh_session_int, filename, passphrase=None):
+#    key = ssh_key_new()
+#    result = c_ssh_key_import_private(key,
+#                                      ssh_session_int, 
+#                                      c_char_p(filename), 
+#                                      c_char_p(passphrase))
+#
+#    if result != SSH_OK:
+#        error = ssh_get_error(ssh_session_int)
+#        raise SshError("Could not import private-key from [%s]: %s" % 
+#                       (filename, error))
+#
+#    return key
 
 #def _ssh_set_blocking(ssh_session_int, blocking):
 #    c_ssh_set_blocking(ssh_session_int, c_int(blocking))
@@ -290,21 +315,6 @@ def ssh_key_import_private(ssh_session_int, filename, passphrase=None):
 def _ssh_is_blocking(ssh_session_int):
     result = c_ssh_is_blocking(ssh_session_int)
     return bool(result)
-
-# TODO: Finish.
-#def ssh_key_clean(ssh_key):
-#    c_ssh_key_clean(ssh_key)
-
-# void ssh_key_free (ssh_key key)
-#c_ssh_key_free = libssh.ssh_key_free
-#c_ssh_key_free.argtypes = [c_ssh_key]
-#c_ssh_key_free.restype = None
-
-# TODO: Implement these.
-#c_ssh_userauth_publickey
-#c_ssh_key_import_private
-#c_ssh_key_clean
-#c_ssh_key_free
 
 
 class SshSystem(object):
@@ -374,10 +384,17 @@ class SshSession(object):
         return _ssh_userauth_password(self.__ssh_session_int, username, password)
 
     def userauth_privatekey_file(self, username, filepath, passphrase=None):
+        """This is the legacy function."""
+
         return _ssh_userauth_privatekey_file(self.__ssh_session_int, 
                                              username, 
                                              filepath, 
                                              passphrase)
+
+    def userauth_publickey(self, username, privkey):
+        """This is the recommended function. Supports EC keys."""
+    
+        return _ssh_userauth_publickey(self.__ssh_session_int, username, privkey)
 
     def execute(self, cmd, block_size=DEFAULT_EXECUTE_READ_BLOCK_SIZE):
         """Execute a remote command. This functionality does not support more 
