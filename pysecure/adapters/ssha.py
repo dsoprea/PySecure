@@ -20,7 +20,12 @@ from pysecure.constants.ssh import SSH_OK, SSH_ERROR, SSH_AGAIN, SSH_EOF, \
                                    SSH_SERVER_KNOWN_OK, \
                                    SSH_SERVER_KNOWN_CHANGED, \
                                    SSH_SERVER_FOUND_OTHER, SSH_OPTIONS, \
-                                   SSH_SERVER_FILE_NOT_FOUND
+                                   SSH_SERVER_FILE_NOT_FOUND, \
+                                   \
+                                   SSH_CLOSED, \
+                                   SSH_READ_PENDING, \
+                                   SSH_WRITE_PENDING, \
+                                   SSH_CLOSED_ERROR
 
 from pysecure.calls.sshi import c_free, c_ssh_pki_import_privkey_file, \
                                 c_ssh_write_knownhost, c_ssh_get_pubkey_hash, \
@@ -31,7 +36,12 @@ from pysecure.calls.sshi import c_free, c_ssh_pki_import_privkey_file, \
                                 c_ssh_finalize, c_ssh_userauth_password, \
                                 c_ssh_forward_listen, c_ssh_forward_accept, \
                                 c_ssh_key_new, c_ssh_userauth_publickey, \
-                                c_ssh_key_free
+                                c_ssh_key_free, c_ssh_get_disconnect_message, \
+                                c_ssh_get_issue_banner, \
+                                c_ssh_get_openssh_version, c_ssh_get_status, \
+                                c_ssh_get_version, c_ssh_get_serverbanner, \
+                                c_ssh_disconnect
+
 #                                c_ssh_set_blocking, 
 #                                c_ssh_is_blocking
 
@@ -277,9 +287,8 @@ def _ssh_userauth_publickey(ssh_session_int, username, priv_key):
 def ssh_pki_import_privkey_file(file_path, pass_phrase=None):
     logging.debug("Importing private-key from [%s]." % (file_path))
 
-    # It looks like we don't have to do an officie ssh_key_new().
-# TODO: Do we have to free this after the import?
     key = c_ssh_key()
+# TODO: This needs to be freed. Use our key class.
     result = c_ssh_pki_import_privkey_file(c_char_p(file_path), 
                                            c_char_p(pass_phrase), 
                                            None, 
@@ -316,6 +325,62 @@ def _ssh_is_blocking(ssh_session_int):
     result = c_ssh_is_blocking(ssh_session_int)
     return bool(result)
 
+def _ssh_get_disconnect_message(ssh_session_int):
+# TODO: This never seems to work because an actual disconnect doesn't seem to set its "closed" flag. Reported.
+    message = c_ssh_get_disconnect_message(ssh_session_int)
+    if message is None:
+        return (ssh_get_error_code(ssh_session_int), True)
+
+    return (message, False)
+
+def _ssh_get_issue_banner(ssh_session_int):
+    """Get the "issue banner" for the server. Note that this function may/will
+    fail if the server isn't configured for such a message (like some/all
+    Ubuntu installs). In the event of failure, we'll just return an empty 
+    string.
+    """
+
+    message = c_ssh_get_issue_banner(ssh_session_int)
+# TODO: Does "newly allocated" string have to be freed? We might have to reallocate it as a Python string.
+    if message is None:
+        return ''
+
+    return message
+
+def _ssh_get_openssh_version(ssh_session_int):
+    openssh_server_version = c_ssh_get_openssh_version(ssh_session_int)
+    if openssh_server_version == 0:
+        raise SshError("Could not get OpenSSH version. Server may not be "
+                       "OpenSSH.")
+
+    return openssh_server_version
+
+def _ssh_get_status(ssh_session_int):
+    result = c_ssh_get_status(ssh_session_int)
+
+# TODO: This is returning bad flags (SSH_CLOSED_ERROR is True).
+    return { 'SSH_CLOSED': (result & SSH_CLOSED) > 0,
+             'SSH_READ_PENDING': (result & SSH_READ_PENDING) > 0,
+             'SSH_WRITE_PENDING': (result & SSH_WRITE_PENDING) > 0,
+             'SSH_CLOSED_ERROR': (result & SSH_CLOSED_ERROR) > 0 }
+
+def _ssh_get_version(ssh_session_int):
+    protocol_version = c_ssh_get_version(ssh_session_int)
+    if protocol_version < 0:
+        raise SshError("Could not determine protocol version.")
+
+    return protocol_version
+
+def _ssh_get_serverbanner(ssh_session_int):
+    result = c_ssh_get_serverbanner(ssh_session_int)
+    if result is None:
+        raise SshError("Could not get server-banner.")
+
+    return result
+
+def _ssh_disconnect(ssh_session_int):
+    c_ssh_disconnect(ssh_session_int)
+
 
 class SshSystem(object):
     def __enter__(self):
@@ -331,7 +396,10 @@ class SshSession(object):
         self.__options = options
 
         self.__ssh_session_int = _ssh_new()
-        logging.debug("Created SSH session: %d" % (self.__ssh_session_int))
+        self.__log = logging.getLogger('SSH_SESSION(%d)' % 
+                                       (self.__ssh_session_int))
+
+        self.__log.debug("Created session.")
 
 #        self.set_blocking(blocking)
 
@@ -353,15 +421,22 @@ class SshSession(object):
             else:
                 raise SshError("Option type [%s] is invalid." % (type_))
             
-            logging.debug("Setting option [%s] (%d) to [%s]." % 
-                          (k, option_id, v))
+            self.__log.debug("Setting option [%s] (%d) to [%s]." % 
+                             (k, option_id, v))
 
             option_setter(self.__ssh_session_int, option_id, v)
 
         return self
 
     def __exit__(self, e_type, e_value, e_tb):
-        logging.debug("Freeing SSH session: %d" % (self.__ssh_session_int))
+        # _ssh_free doesn't seem to imply a formal disconnect.
+        self.disconnect()
+
+#        (message, is_error) = self.get_disconnect_message()
+#        self.__log.debug("Disconnect message: %s (error= %s)" % 
+#                         (message, is_error))
+
+        self.__log.debug("Freeing SSH session: %d" % (self.__ssh_session_int))
 
         _ssh_free(self.__ssh_session_int)
 
@@ -404,7 +479,7 @@ class SshSession(object):
         """
     
         with SshChannel(self) as sc:
-            logging.debug("Executing command: %s" % (cmd))
+            self.__log.debug("Executing command: %s" % (cmd))
 
             sc.open_session()
             sc.request_exec(cmd)
@@ -431,6 +506,29 @@ class SshSession(object):
     def get_error(self):
         return ssh_get_error(self.__ssh_session_int)
 
+    def get_disconnect_message(self):
+# TODO: This seems like it only may be useful under a sudden/spurious 
+#       disconnect.
+        return _ssh_get_disconnect_message(self.__ssh_session_int)
+
+    def get_issue_banner(self):
+        return _ssh_get_issue_banner(self.__ssh_session_int)
+
+    def get_openssh_version(self):
+        return _ssh_get_openssh_version(self.__ssh_session_int)
+
+    def get_status(self):
+        return _ssh_get_status(self.__ssh_session_int)
+
+    def get_version(self):
+        return _ssh_get_version(self.__ssh_session_int)
+
+    def get_serverbanner(self):
+        return _ssh_get_serverbanner(self.__ssh_session_int)
+
+    def disconnect(self):
+        return _ssh_disconnect(self.__ssh_session_int)
+
     @property
     def session_id(self):
         return self.__ssh_session_int
@@ -449,6 +547,7 @@ class SshConnect(object):
     def __exit__(self, e_type, e_value, e_tb):
         logging.debug("Disconnecting SSH.")
         _ssh_disconnect(self.__ssh_session_int)
+
 
 
 class _PublicKeyHashString(object):

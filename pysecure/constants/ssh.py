@@ -81,3 +81,9 @@ SSH_REQUEST_DENIED = 1
 SSH_FATAL          = 2
 SSH_EINTR          = 3
 
+# Status flags.
+SSH_CLOSED        = 0x01
+SSH_READ_PENDING  = 0x02
+SSH_WRITE_PENDING = 0x04
+SSH_CLOSED_ERROR  = 0x08
+
