@@ -3,7 +3,11 @@
 from test_base import connect_sftp
 from test_base import connect_ssh
 
-#def sftp_cb(ssh, sftp):
+from datetime import datetime
+
+def sftp_cb(ssh, sftp):
+    sftp.utimes_dt('/tmp/test_time', datetime.now(), datetime.now())
+
 #    def dir_cb(path, entry):
 #        full_path = ('%s/%s' % (path, entry.name))
 #        print("DIR: %s" % (full_path))
@@ -12,11 +16,11 @@ from test_base import connect_ssh
 #        print("[%s]: (%d) files" % (path, len(list_)))
 #
 #    sftp.recurse('Pictures', dir_cb, listing_cb)
+
+connect_sftp(sftp_cb)
+
+#def ssh_cb(ssh):
+#    pass
 #
-#connect_sftp(sftp_cb)
-
-def ssh_cb(ssh):
-    pass
-
-connect_ssh(ssh_cb)
+#connect_ssh(ssh_cb)
 

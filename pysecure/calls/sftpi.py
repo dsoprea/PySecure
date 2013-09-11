@@ -280,7 +280,7 @@ c_sftp_unlink.restype = c_int
 
 # int sftp_utimes (sftp_session sftp, const char *file, const struct timeval *times)
 c_sftp_utimes = libssh.sftp_utimes
-c_sftp_utimes.argtypes = [c_sftp_session, c_char_p, POINTER(c_timeval)]
+c_sftp_utimes.argtypes = [c_sftp_session, c_char_p, POINTER(c_timeval * 2)]
 c_sftp_utimes.restype = c_int
 
 # ssize_t libssh2_sftp_write(LIBSSH2_SFTP_HANDLE *handle, const char *buffer, size_t count);

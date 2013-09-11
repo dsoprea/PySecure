@@ -3,7 +3,7 @@ import logging
 from datetime import datetime
 from os import SEEK_SET, SEEK_CUR, SEEK_END, mkdir, unlink, utime
 from ctypes import create_string_buffer, cast, c_void_p, c_int, c_char_p, \
-                   c_size_t
+                   c_size_t, byref
 from collections import deque
 from cStringIO import StringIO
 from shutil import rmtree
@@ -332,35 +332,29 @@ def _sftp_listdir(sftp_session_int, path):
                             "at EOF.")
 
 def _sftp_utimes(sftp_session_int, file_path, atime_epoch, mtime_epoch):
-    times = CTimeval() * 2
+    atime = CTimeval()
+    mtime = CTimeval()
 
-    times[0].tv_sec = atime_epoch
-    times[0].tv_usec = 0
-    times[1].tv_sec = mtime_epoch
-    times[1].tv_usec = 0
+    atime.tv_sec = int(atime_epoch)
+    atime.tv_usec = 0
+
+    mtime.tv_sec = int(mtime_epoch)
+    mtime.tv_usec = 0
+
+    times = (CTimeval * 2)(atime, mtime)
 
     result = c_sftp_utimes(sftp_session_int, 
-                           c_char_p(filepath), 
+                           c_char_p(file_path), 
                            byref(times))
 
     if result < 0:
         raise SftpError("Times updated of [%s] failed." % (file_path))
-
 
 def _sftp_utimes_dt(sftp_session_int, file_path, atime_dt, mtime_dt):
-    times = CTimeval() * 2
-
-    times[0].tv_sec = mktime(atime_dt.timetuple())
-    times[0].tv_usec = 0
-    times[1].tv_sec = mktime(mtime_dt.timetuple())
-    times[1].tv_usec = 0
-
-    result = c_sftp_utimes(sftp_session_int, 
-                           c_char_p(filepath), 
-                           byref(times))
-
-    if result < 0:
-        raise SftpError("Times updated of [%s] failed." % (file_path))
+    _sftp_utimes(sftp_session_int, 
+                 file_path, 
+                 mktime(atime_dt.timetuple()), 
+                 mktime(mtime_dt.timetuple()))
 
 
 class SftpSession(object):
@@ -585,21 +579,20 @@ class SftpSession(object):
                 self.symlink(linked_to, filepath_to)
 
             elif entry.is_special:
-# TODO: Finish.
-                raise NotImplementedError()
+                # SSH can't indulge us for devices, etc..
+                self.__log.warn("Skipping 'special' file: %s" % 
+                                (filepath_from))
 
         return list(remote_dirs)
 
     def utimes(self, file_path, atime_epoch, mtime_epoch):
-# TODO: Test.
         _sftp_utimes(self.__sftp_session_int, 
                      file_path, 
                      atime_epoch, 
                      mtime_epoch)
 
     def utimes_dt(self, file_path, atime_dt, mtime_dt):
-# TODO: Test.
-        _sftp_utimes_dt(sftp_session_int, file_path, atime_dt, mtime_dt)
+        _sftp_utimes_dt(self.__sftp_session_int, file_path, atime_dt, mtime_dt)
         
     @property
     def session_id(self):
