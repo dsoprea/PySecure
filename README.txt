@@ -26,7 +26,7 @@ X Remote command (single commands).
 X Remote execution (shell session).
   Threading support.
   Support X11 forwarding.
-  Added SFTP "mirror" functionality.
+X Added SFTP "mirror" functionality.
 
 Dependencies
 ============
