@@ -97,7 +97,8 @@ Recurse a directory:
 
 Mirror a directory:
 
-    sftp.mirror_to_local_recursive("remote_path", "/tmp/local_target")
+    with SftpSession(ssh) as sftp:
+        sftp.mirror_to_local_recursive("remote_path", "/tmp/local_target")
 
 Read a file:
 
@@ -197,7 +198,6 @@ Remote Shell (efficient for many commands):
 
     Example:
 
-        ssh.set_blocking(False)
         rsp = RemoteShellProcessor(ssh)
         
         def shell_context_cb(sc, welcome):
