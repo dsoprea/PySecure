@@ -9,7 +9,7 @@ from pysecure.config import NONBLOCK_READ_TIMEOUT_MS, \
                             DEFAULT_SHELL_READ_BLOCK_SIZE
 from pysecure.constants.ssh import SSH_OK, SSH_ERROR, SSH_AGAIN
 from pysecure.exceptions import SshError, SshNonblockingTryAgainException, \
-                                SshNoDataReceivedException
+                                SshNoDataReceivedException, SshTimeoutException
 from pysecure.utility import sync
 from pysecure.calls.channeli import c_ssh_channel_new, \
                                     c_ssh_channel_open_forward, \
@@ -25,7 +25,9 @@ from pysecure.calls.channeli import c_ssh_channel_new, \
                                     c_ssh_channel_is_eof, \
                                     c_ssh_channel_read_nonblocking, \
                                     c_ssh_channel_request_env, \
-                                    c_ssh_channel_get_session
+                                    c_ssh_channel_get_session, \
+                                    c_ssh_channel_accept_x11, \
+                                    c_ssh_channel_request_x11
                                     
 from pysecure.error import ssh_get_error, ssh_get_error_code
 
@@ -225,6 +227,30 @@ def _ssh_channel_request_env(ssh_channel_int, name, value):
 def _ssh_channel_get_session(ssh_channel_int):
     return c_ssh_channel_get_session(ssh_channel_int)
 
+def _ssh_channel_accept_x11(ssh_channel_int, timeout_ms):
+    ssh_channel_accepted = c_ssh_channel_accept_x11(ssh_channel_int, 
+                                                    timeout_ms)
+
+    if ssh_channel_accepted is None:
+        raise SshTimeoutException()
+
+    return ssh_channel_accept
+
+def _ssh_channel_request_x11(ssh_channel_int, screen_number=0, 
+                             single_connection=False, protocol=None, 
+                             cookie=None):
+    result = c_ssh_channel_request_x11(ssh_channel_int, int(single_connection), 
+                                       c_char_p(protocol), c_char_p(cookie), 
+                                       screen_number)
+
+    if result == SSH_AGAIN:
+        raise SshNonblockingTryAgainException()
+    elif result != SSH_OK:
+        ssh_session_int = _ssh_channel_get_session(ssh_channel_int)
+        error = ssh_get_error(ssh_session_int)
+
+        raise SshError("Channel request-X11 failed: %s" % (error))
+
 
 class SshChannel(object):
     def __init__(self, ssh_session, ssh_channel=None):
@@ -243,11 +269,18 @@ class SshChannel(object):
         return self
 
     def __exit__(self, e_type, e_value, e_tb):
-
         # The documentation says that a "free" implies a "close", and that a 
         # "close" implies a "send eof". From a cursory glance, this seems
         # accurate.
         _ssh_channel_free(self.__ssh_channel_int)
+        self.__ssh_channel_int = None
+    
+    def __del__(self):
+        # The documentation says that a "free" implies a "close", and that a 
+        # "close" implies a "send eof". From a cursory glance, this seems
+        # accurate.
+        if self.__ssh_channel_int is not None:
+            _ssh_channel_free(self.__ssh_channel_int)
 
     def open_forward(self, host_remote, port_remote, host_source, port_local):
         _ssh_channel_open_forward(self.__ssh_channel_int, 
@@ -299,6 +332,17 @@ class SshChannel(object):
     
     def request_env(self, name, value):
         return _ssh_channel_request_env(self.__ssh_channel_int, name, value)
+
+    def accept_x11(self, timeout_ms):
+        ssh_x11_channel_int = _ssh_channel_accept_x11(self.__ssh_channel_int, 
+                                                      timeout_ms)
+
+        return SshChannel(self.__ssh_session_int, ssh_x11_channel_int)
+
+    def request_x11(screen_number=0, single_connection=False, protocol=None,
+                    cookie=None):
+        return _ssh_channel_request_x11(self.__ssh_channel_int, screen_number, 
+                                        single_connection, protocol, cookie)
 
 
 class RemoteShellProcessor(object):

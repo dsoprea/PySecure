@@ -81,5 +81,15 @@ c_ssh_channel_request_env.restype = c_int
 # ssh_session ssh_channel_get_session(ssh_channel channel)
 c_ssh_channel_get_session = libssh.ssh_channel_get_session
 c_ssh_channel_get_session.argtypes = [c_ssh_channel]
-c_ssh_channel_get_session.restyppe = c_ssh_session
+c_ssh_channel_get_session.restype = c_ssh_session
+
+# ssh_channel ssh_channel_accept_x11(ssh_channel channel, int timeout_ms)
+c_ssh_channel_accept_x11 = libssh.ssh_channel_accept_x11
+c_ssh_channel_accept_x11.argtypes = [c_ssh_channel, c_int]
+c_ssh_channel_accept_x11.restype = c_ssh_channel
+
+# int ssh_channel_request_x11(ssh_channel channel, int single_connection, const char *protocol, const char *cookie, int screen_number)
+c_ssh_channel_request_x11 = libssh.ssh_channel_request_x11
+c_ssh_channel_request_x11.argtypes = [c_ssh_channel, c_int, c_char_p, c_char_p, c_int]
+c_ssh_channel_request_x11.restype = c_int
 

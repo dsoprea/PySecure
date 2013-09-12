@@ -1,0 +1,55 @@
+int ssh_auth_list (ssh_session session)
+enum ssh_keytypes_e ssh_privatekey_type (ssh_private_key privatekey)
+int ssh_userauth_list (ssh_session session, const char *username)
+int ssh_userauth_none (ssh_session session, const char *username)
+
+ssh_channel ssh_channel_accept_x11 (ssh_channel channel, int timeout_ms)
+int ssh_channel_change_pty_size (ssh_channel channel, int cols, int rows)
+int ssh_channel_close (ssh_channel channel)
+int ssh_channel_get_exit_status (ssh_channel channel)
+int ssh_channel_is_closed (ssh_channel channel)
+int ssh_channel_poll (ssh_channel channel, int is_stderr)
+int ssh_channel_request_send_signal (ssh_channel channel, const char *sig)
+int ssh_channel_request_subsystem (ssh_channel channel, const char *subsys)
+int ssh_channel_request_x11 (ssh_channel channel, int single_connection, const char *protocol, const char *cookie, int screen_number)
+int ssh_channel_select (ssh_channel *readchans, ssh_channel *writechans, ssh_channel *exceptchans, struct timeval *timeout)
+void ssh_channel_set_blocking (ssh_channel channel, int blocking)
+ssh_channel ssh_forward_accept (ssh_session session, int timeout_ms)
+int ssh_forward_cancel (ssh_session session, const char *address, int port)
+int ssh_forward_listen (ssh_session session, const char *address, int port, int *bound_port)
+
+
+int ssh_get_error_code (void *error)
+
+
+int ssh_mkdir (const char *pathname, mode_t mode)
+char *ssh_path_expand_tilde (const char *d)
+int ssh_timeout_update (struct ssh_timestamp *ts, int timeout)
+
+int ssh_blocking_flush (ssh_session session, int timeout)
+int ssh_is_connected (ssh_session session)
+int ssh_is_server_known (ssh_session session)
+int ssh_select (ssh_channel *channels, ssh_channel *outchannels, socket_t maxfd, fd_set *readfds, struct timeval *timeout)
+void ssh_set_blocking (ssh_session session, int blocking)
+
+struct ssh_threads_callbacks_struct *ssh_threads_get_noop ()
+int ssh_threads_set_callbacks (struct ssh_threads_callbacks_struct *cb)
+
+
+
+Channel
+
+int ssh_channel_poll	(	ssh_channel 	channel, int 	is_stderr )		
+int ssh_channel_select	(	ssh_channel * 	readchans, ssh_channel * 	writechans, ssh_channel * 	exceptchans, struct timeval * 	timeout )	
+int ssh_channel_request_send_signal	(	ssh_channel 	channel, const char * 	sig )	
+int ssh_channel_request_x11	(	ssh_channel 	channel, int 	single_connection, const char * 	protocol, const char * 	cookie, int 	screen_number )	
+int ssh_forward_cancel	(	ssh_session 	session, const char * 	address, int 	port )	
+int ssh_channel_get_exit_status	(	ssh_channel 	channel	)	
+
+SSH
+
+ssh_message ssh_message_get	(	ssh_session 	session	)	
+
+int ssh_select	(	ssh_channel * 	channels, ssh_channel * 	outchannels, socket_t 	maxfd, fd_set * 	readfds, struct timeval * 	timeout )
+
+

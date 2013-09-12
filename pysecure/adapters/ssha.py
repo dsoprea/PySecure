@@ -40,10 +40,9 @@ from pysecure.calls.sshi import c_free, c_ssh_pki_import_privkey_file, \
                                 c_ssh_get_issue_banner, \
                                 c_ssh_get_openssh_version, c_ssh_get_status, \
                                 c_ssh_get_version, c_ssh_get_serverbanner, \
-                                c_ssh_disconnect
+                                c_ssh_disconnect, c_ssh_is_blocking
 
 #                                c_ssh_set_blocking, 
-#                                c_ssh_is_blocking
 
 
 from pysecure.adapters.channela import SshChannel
