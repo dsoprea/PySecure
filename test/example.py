@@ -6,21 +6,10 @@ from test_base import connect_ssh
 from datetime import datetime
 
 def sftp_cb(ssh, sftp):
-    sftp.utimes_dt('/tmp/test_time', datetime.now(), datetime.now())
-
-#    def dir_cb(path, entry):
-#        full_path = ('%s/%s' % (path, entry.name))
-#        print("DIR: %s" % (full_path))
-#
-#    def listing_cb(path, list_):
-#        print("[%s]: (%d) files" % (path, len(list_)))
-#
-#    sftp.recurse('Pictures', dir_cb, listing_cb)
+#    sftp.collect_deltas("Pictures", "/tmp/Pictures", log_files=True)
+#    sftp.mirror_to_local_no_recursion("Pictures", "/tmp/Pictures", log_files=True)
+    sftp.mirror_to_local_recursive("Pictures", "/tmp/Pictures", log_files=True)
+#    sftp.mirror_to_local_recursive("Documents", "/tmp/Documents")#, log_files=True)
 
 connect_sftp(sftp_cb)
-
-#def ssh_cb(ssh):
-#    pass
-#
-#connect_ssh(ssh_cb)
 

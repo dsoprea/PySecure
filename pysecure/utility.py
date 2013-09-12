@@ -1,7 +1,7 @@
 from sys import stdout
 from collections import deque
 from os import listdir, stat
-from os.path import basename, isfile, isdir
+from os.path import basename, isfile, isdir, islink
 
 from pysecure.exceptions import SshNonblockingTryAgainException
 
@@ -74,13 +74,24 @@ def local_recurse(path, dir_cb, listing_cb, max_listing_size=0,
 
         entries = listdir(path)
         collected = []
+
+        def push_entity(entity):
+            collected.append(entity)
+            if max_listing_size > 0 and \
+               max_listing_size <= len(collected):
+                listing_cb(path, collected)
+                del collected[:]
+
         for name in entries:
             file_path = ('%s/%s' % (path, name))
+            print("ENTRY: %s" % (file_path))
 
-            attr = stat(file_path)
-            entity = (name, int(attr.st_mtime), attr.st_size)
-
-            if isdir(file_path):
+            if islink(file_path):
+                if listing_cb is not None:
+                    attr = stat(file_path)
+                    entity = (name, int(attr.st_mtime), attr.st_size, True)
+                    push_entity(entity)
+            elif isdir(file_path):
                 if name == '.' or name == '..':
                     continue
 
@@ -91,13 +102,13 @@ def local_recurse(path, dir_cb, listing_cb, max_listing_size=0,
                 
                 if max_depth is not None and max_depth >= new_depth:
                     q.append((file_path, new_depth))
-            elif isfile(file_path) and listing_cb is not None:
-                collected.append((file_path, name))
-                if max_listing_size > 0 and \
-                   max_listing_size <= len(collected):
-                    listing_cb(path, collected)
-                    collected = []
+            elif isfile(file_path):
+                if listing_cb is not None:
+                    attr = stat(file_path)
+                    entity = (name, int(attr.st_mtime), attr.st_size, False)
+                    push_entity(entity)
 
-        if listing_cb is not None and max_listing_size == 0 or len(collected) > 0:
+        if listing_cb is not None and max_listing_size == 0 or \
+           len(collected) > 0:
             listing_cb(path, collected)
 
