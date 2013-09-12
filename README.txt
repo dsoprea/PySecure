@@ -95,6 +95,10 @@ Recurse a directory:
 
         sftp.recurse('Pictures', dir_cb, listing_cb)
 
+Mirror a directory:
+
+    sftp.mirror_to_local_recursive("remote_path", "/tmp/local_target")
+
 Read a file:
 
     with SftpSession(ssh) as sftp:

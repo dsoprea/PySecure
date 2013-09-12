@@ -125,3 +125,43 @@ c_ssh_is_blocking = libssh.ssh_is_blocking
 c_ssh_is_blocking.argtypes = [c_ssh_session]
 c_ssh_is_blocking.restype = c_int
 
+# int ssh_pki_import_privkey_file(const char *filename, const char *passphrase, ssh_auth_callback auth_fn, void *auth_data, ssh_key *pkey)
+c_ssh_pki_import_privkey_file = libssh.ssh_pki_import_privkey_file
+c_ssh_pki_import_privkey_file.argtypes = [c_char_p, c_char_p, c_void_p, c_void_p, POINTER(c_ssh_key)]
+c_ssh_pki_import_privkey_file.restype = c_int
+
+# const char* ssh_get_disconnect_message	(	ssh_session 	session	)	
+c_ssh_get_disconnect_message = libssh.ssh_get_disconnect_message
+c_ssh_get_disconnect_message.argtypes = [c_ssh_session]
+c_ssh_get_disconnect_message.restype = c_char_p
+
+# char* ssh_get_issue_banner(ssh_session session)
+c_ssh_get_issue_banner = libssh.ssh_get_issue_banner
+c_ssh_get_issue_banner.argtypes = [c_ssh_session]
+c_ssh_get_issue_banner.restype = c_char_p
+
+# int ssh_get_openssh_version(ssh_session session)
+c_ssh_get_openssh_version = libssh.ssh_get_openssh_version
+c_ssh_get_openssh_version.argtypes = [c_ssh_session]
+c_ssh_get_openssh_version.restype = c_int
+
+# int ssh_get_status(ssh_session session)
+c_ssh_get_status = libssh.ssh_get_status
+c_ssh_get_status.argtypes = [c_ssh_session]
+c_ssh_get_status.restype = c_int
+
+# int ssh_get_version(ssh_session session)
+c_ssh_get_version = libssh.ssh_get_version
+c_ssh_get_version.argtypes = [c_ssh_session]
+c_ssh_get_version.restype = c_int
+
+# const char* ssh_get_serverbanner(ssh_session session)
+c_ssh_get_serverbanner = libssh.ssh_get_serverbanner
+c_ssh_get_serverbanner.argtypes = [c_ssh_session]
+c_ssh_get_serverbanner.restype = c_char_p
+
+# void ssh_disconnect(ssh_session session)
+c_ssh_disconnect = libssh.ssh_disconnect
+c_ssh_disconnect.argtypes = [c_ssh_session]
+c_ssh_disconnect.restype = None
+

@@ -80,15 +80,39 @@ class _CSftpAttributesStruct(Structure):
     def is_unknown_type(self):
         return self.type == SSH_FILEXFER_TYPE_UNKNOWN
 
+    @property
+    def modified_time(self):
+# TODO: We're not sure if the mtime64 value is available on a 32-bit platform. We do this to be safe.
+        return self.mtime64 if self.mtime64 else self.mtime
+
+    @property
+    def modified_time_dt(self):
+        if self.mtime64:
+            return datetime.fromtimestamp(self.mtime64)
+        else:
+            return datetime.fromtimestamp(self.mtime)
+
 _CSftpAttributes = POINTER(_CSftpAttributesStruct)
 
 
 class CTimeval(Structure):
-    _fields_ = [('tv_sec', c_time_t),
-                ('tv_usec', c_suseconds_t)]
+    # it was easier to set these types based on what libssh assigns to them. 
+    # The traditional definition leaves some platform ambiguity.
+    _fields_ = [('tv_sec', c_uint32),
+                ('tv_usec', c_uint32)]
 
 c_timeval = CTimeval
 
+class _CSshKeyStruct(Structure):
+    _fields_ = [('type', c_int),
+                ('flags', c_int),
+                ('type_c', c_char_p),
+                ('ecdsa_nid', c_int),
+                ('dsa', c_void_p),
+                ('rsa', c_void_p),
+                ('ecdsa', c_void_p),
+                ('cert', c_void_p)]
+                
 # Fortunately, we should probably be able to avoid most/all of the mechanics 
 # for the vast number of structs.
 
@@ -98,7 +122,7 @@ c_sftp_session = c_void_p
 c_sftp_attributes = _CSftpAttributes
 c_sftp_dir = c_void_p
 c_sftp_file = c_void_p
-c_ssh_key = c_void_p
+c_ssh_key = POINTER(_CSshKeyStruct)
 
 # A simple aliasing assignment doesn't work, here.
 # c_sftp_statvfs = c_void_p

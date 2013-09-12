@@ -1,18 +1,22 @@
 import logging
 
 from datetime import datetime
-from os import SEEK_SET, SEEK_CUR, SEEK_END
+from os import SEEK_SET, SEEK_CUR, SEEK_END, mkdir, unlink, utime, symlink
 from ctypes import create_string_buffer, cast, c_void_p, c_int, c_char_p, \
-                   c_size_t
+                   c_size_t, byref
 from collections import deque
 from cStringIO import StringIO
+from shutil import rmtree
+from time import mktime
 
 from pysecure.constants.ssh import SSH_NO_ERROR
 from pysecure.constants.sftp import O_RDONLY, O_WRONLY, O_RDWR, O_CREAT, \
                                     O_TRUNC
-
+from pysecure.types import CTimeval
 from pysecure.constants import SERVER_RESPONSES
-from pysecure.config import DEFAULT_CREATE_MODE
+from pysecure.config import DEFAULT_CREATE_MODE, \
+                            MAX_MIRROR_LISTING_CHUNK_SIZE, \
+                            MAX_MIRROR_WRITE_CHUNK_SIZE
 from pysecure.calls.sftpi import c_sftp_get_error, c_sftp_new, c_sftp_init, \
                                  c_sftp_open, c_sftp_write, c_sftp_free, \
                                  c_sftp_opendir, c_sftp_closedir, \
@@ -21,9 +25,11 @@ from pysecure.calls.sftpi import c_sftp_get_error, c_sftp_new, c_sftp_init, \
                                  c_sftp_read, c_sftp_fstat, c_sftp_rewind, \
                                  c_sftp_close, c_sftp_rename, c_sftp_chmod, \
                                  c_sftp_chown, c_sftp_mkdir, c_sftp_rmdir, \
-                                 c_sftp_stat
+                                 c_sftp_stat, c_sftp_utimes, c_sftp_readlink, \
+                                 c_sftp_symlink
 
 from pysecure.exceptions import SftpError
+from pysecure.utility import local_recurse
 
 def sftp_get_error(sftp_session_int):
     return c_sftp_get_error(sftp_session_int)
@@ -326,12 +332,39 @@ def _sftp_listdir(sftp_session_int, path):
             raise SftpError("We're done iterating the directory, but it's not "
                             "at EOF.")
 
+def _sftp_utimes(sftp_session_int, file_path, atime_epoch, mtime_epoch):
+    atime = CTimeval()
+    mtime = CTimeval()
+
+    atime.tv_sec = int(atime_epoch)
+    atime.tv_usec = 0
+
+    mtime.tv_sec = int(mtime_epoch)
+    mtime.tv_usec = 0
+
+    times = (CTimeval * 2)(atime, mtime)
+
+    result = c_sftp_utimes(sftp_session_int, 
+                           c_char_p(file_path), 
+                           byref(times))
+
+    if result < 0:
+        raise SftpError("Times updated of [%s] failed." % (file_path))
+
+def _sftp_utimes_dt(sftp_session_int, file_path, atime_dt, mtime_dt):
+    _sftp_utimes(sftp_session_int, 
+                 file_path, 
+                 mktime(atime_dt.timetuple()), 
+                 mktime(mtime_dt.timetuple()))
+
 
 class SftpSession(object):
     def __init__(self, ssh_session):
         self.__ssh_session_int = getattr(ssh_session, 
                                          'session_id', 
                                          ssh_session)
+        self.__log = logging.getLogger('SSH_SESSION(%s)' % 
+                                       (self.__ssh_session_int))
 
     def __enter__(self):
         self.__sftp_session_int = _sftp_new(self.__ssh_session_int)
@@ -378,32 +411,274 @@ class SftpSession(object):
     def listdir(self, path):
         return _sftp_listdir(self.__sftp_session_int, path)
 
-    def recurse(self, path, dir_cb, listing_cb, max_listing_size=0):
-        q = deque([path])
+    def recurse(self, path, dir_cb, listing_cb, max_listing_size=0, 
+                max_depth=None):
+        """Recursively iterate a directory. Invoke callbacks for directories 
+        and entries (both are optional, but it doesn't make sense unless one is 
+        provided). "max_listing_size" will allow for the file-listing to be 
+        chunked into manageable pieces. "max_depth" limited how deep recursion 
+        goes. This can be used to make it easy to simply read a single 
+        directory in chunks.
+        """
+                
+        q = deque([(path, 0)])
+        collected = []
+
+        def push_file(path, file_path, entry):
+            collected.append((file_path, entry))
+            if max_listing_size > 0 and \
+               max_listing_size <= len(collected):
+                listing_cb(path, collected)
+                del collected[:]
+
         while q:
-            path = q.popleft()
+            (path, current_depth) = q.popleft()
 
             entries = self.listdir(path)
-            collected = []
             for entry in entries:
-                if entry.is_directory:
+                file_path = ('%s/%s' % (path, entry.name))
+
+                if entry.is_symlink:
+                    push_file(path, file_path, entry)
+                elif entry.is_directory:
                     if entry.name == '.' or entry.name == '..':
                         continue
 
-                    dir_cb(path, entry)
+                    if dir_cb is not None:
+                        dir_cb(path, file_path, entry)
 
-                    full_path = ('%s/%s' % (path, entry.name))
-                    q.append(full_path)
-                elif entry.is_regular:
-                    collected.append(entry)
-                    if max_listing_size > 0 and \
-                       max_listing_size <= len(collected):
-                        listing_cb(path, collected)
-                        collected = []
+                    new_depth = current_depth + 1
+                    
+                    if max_depth is not None and max_depth >= new_depth:
+                        q.append((file_path, new_depth))
+                elif entry.is_regular and listing_cb is not None:
+                    push_file(path, file_path, entry)
 
-            if max_listing_size == 0 or len(collected) > 0:
+            if listing_cb is not None and max_listing_size == 0 or len(collected) > 0:
                 listing_cb(path, collected)
 
+    def write_to_local(self, filepath_from, filepath_to, mtime_dt=None):
+        """Open a remote file and write it locally."""
+
+        self.__log.debug("Writing [%s] -> [%s]." % (filepath_from, 
+                                                    filepath_to))
+
+        with SftpFile(self, filepath_from, 'r') as sf_from:
+            with file(filepath_to, 'w') as file_to:
+                while 1:
+                    part = sf_from.read(MAX_MIRROR_WRITE_CHUNK_SIZE)
+                    file_to.write(part)
+
+                    if len(part) < MAX_MIRROR_WRITE_CHUNK_SIZE:
+                        break
+
+        if mtime_dt is None:
+            mtime_dt = datetime.now()
+
+        mtime_epoch = mktime(mtime_dt.timetuple())
+        utime(filepath_to, (mtime_epoch, mtime_epoch))
+    
+    def mirror_to_local_recursive(self, path_from, path_to, log_files=False):
+        """Recursively mirror the contents of "path_from" into "path_to"."""
+    
+        q = deque([''])
+        while q:
+            path = q.popleft()
+            
+            full_from = ('%s/%s' % (path_from, path)) if path else path_from
+            full_to = ('%s/%s' % (path_to, path)) if path else path_to
+
+            subdirs = self.mirror_to_local_no_recursion(full_from, full_to, 
+                                                        log_files)
+            for subdir in subdirs:
+                q.append(('%s/%s' % (path, subdir)) if path else subdir)
+
+    def collect_deltas(self, path_from, path_to, log_files=False):
+        local_dirs = set()
+        local_entities = set()
+        local_files = set()
+
+        self.__log.debug("Checking local files.")
+
+        def local_dir_cb(parent_path, full_path, filename):
+            local_dirs.add(filename)
+        
+        def local_listing_cb(parent_path, listing):
+            for entry in listing:
+                (filename, mtime, size, is_link) = entry
+
+                entity = (filename, mtime, size, is_link)
+                local_entities.add(entity)
+                local_files.add(filename)
+
+        local_recurse(path_to, 
+                      local_dir_cb, 
+                      local_listing_cb, 
+                      MAX_MIRROR_LISTING_CHUNK_SIZE, 
+                      0)
+
+        self.__log.debug("LOCAL:\n(%d) directories\n(%d) files found." % 
+                         (len(local_dirs), len(local_files)))
+
+        self.__log.debug("Checking remote files.")
+
+        remote_dirs = set()
+        def remote_dir_cb(parent_path, full_path, entry):
+            remote_dirs.add(entry.name)
+
+        remote_entities = set()
+        remote_files = set()
+        remote_dictionary = {}
+        def remote_listing_cb(parent_path, listing):
+            for (file_path, entry) in listing:
+                entity = (entry.name, entry.modified_time, entry.size, 
+                          entry.is_symlink)
+
+                remote_entities.add(entity)
+                remote_files.add(entry.name)
+                remote_dictionary[entry.name] = entry
+
+        self.recurse(path_from, 
+                     remote_dir_cb, 
+                     remote_listing_cb, 
+                     MAX_MIRROR_LISTING_CHUNK_SIZE,
+                     0)
+
+        self.__log.debug("REMOTE:\n(%d) directories\n(%d) files found." % 
+                         (len(remote_dirs), len(remote_files)))
+
+        self.__log.debug("Checking deltas.")
+
+        # Now, calculate the differences.
+
+        new_dirs = remote_dirs - local_dirs
+        
+        if log_files is True:
+            for new_dir in new_dirs:
+                logging.debug("Will CREATE directory: %s" % (new_dir))
+        
+        deleted_dirs = local_dirs - remote_dirs
+
+        if log_files is True:
+            for deleted_dir in deleted_dirs:
+                logging.debug("Will DELETE directory: %s" % (deleted_dir))
+
+        # Get the files from remote that aren't identical to existing local 
+        # entries. These will be copied.
+        missing_entities = remote_entities - local_entities
+
+        if log_files is True:
+            for missing_entity in missing_entities:
+                logging.debug("Will CREATE file: %s" % (missing_entity[0]))
+
+        # Get the files from local that aren't identical to existing remote
+        # entries. These will be deleted.
+        deleted_entities = local_entities - remote_entities
+
+        if log_files is True:
+            for deleted_entity in deleted_entities:
+                logging.debug("Will DELETE file: %s" % (deleted_entity[0]))
+
+        self.__log.debug("DELTA:\n(%d) new directories\n(%d) deleted "
+                         "directories\n(%d) missing local files\n(%d) deleted "
+                         "local files" % 
+                         (len(new_dirs), len(deleted_dirs), 
+                          len(missing_entities), len(deleted_entities)))
+
+        return (new_dirs, deleted_dirs, missing_entities, deleted_entities, 
+                remote_dictionary, remote_dirs)
+
+    def mirror_to_local_no_recursion(self, path_from, path_to, 
+                                     log_files=False):
+        """Mirror a directory without descending into directories. Return a 
+        list of subdirectory names (do not include full path). We will unlink 
+        existing files without determining if they're just going to be 
+        rewritten and then truncating them because it is our belief, based on 
+        what little we could find, that unlinking is, usually, quicker than 
+        truncating.
+        """
+
+        # Make sure the destination exists.
+
+        self.__log.debug("Ensuring local target directory exists: %s" % 
+                         (path_to))
+
+        try:
+            mkdir(path_to)
+        except OSError:
+            already_exists = True
+            self.__log.debug("Local target already exists.")
+        else:
+            already_exists = False
+            self.__log.debug("Local target created.")
+
+        collect_result = self.collect_deltas(path_from, path_to, log_files)
+        (new_dirs, deleted_dirs, missing_entities, deleted_entities, 
+         remote_dictionary, remote_dirs) = collect_result
+
+        self.__log.debug("Removing (%d) directories." % (len(deleted_dirs)))
+
+        # Delete all remote-deleted directories.
+        for name in deleted_dirs:
+            final_path = ('%s/%s' % (path_to, name))
+            self.__log.debug("UPDATE: Removing local directory: %s" % 
+                             (final_path))
+            rmtree(final_path)
+
+        # Delete all remote-deleted non-directory entries, regardless of type.
+        for (name, mtime, size, is_link) in deleted_entities:
+            file_path = ('%s/%s' % (path_to, name))
+            self.__log.debug("UPDATE: Removing local file-path: %s" % 
+                             (file_path))
+            unlink(file_path)
+
+        # Create new directories.
+        for name in new_dirs:
+            final_path = ('%s/%s' % (path_to, name))
+            self.__log.debug("UPDATE: Creating local directory: %s" % 
+                             (final_path))
+            mkdir(final_path)
+
+        # Write new/changed files. Handle all but "unknown" file types.
+        for (name, mtime, size, is_link) in missing_entities:
+            entry = remote_dictionary[name]
+            filepath_from = ('%s/%s' % (path_from, name))
+            filepath_to = ('%s/%s' % (path_to, name))
+
+            if entry.is_regular:
+                self.__log.debug("UPDATE: Creating regular local file-path: "
+                                 "%s" % (filepath_to))
+
+                self.write_to_local(filepath_from, 
+                                    filepath_to, 
+                                    entry.modified_time_dt)
+
+            elif entry.is_symlink:
+                linked_to = self.readlink(filepath_from)
+
+                self.__log.debug("UPDATE: Creating symlink at [%s] to [%s]." % 
+                                 (filepath_to, linked_to))
+            
+                # filepath_to: The physical file.
+                # linked_to: The target.
+                symlink(linked_to, filepath_to)
+
+            elif entry.is_special:
+                # SSH can't indulge us for devices, etc..
+                self.__log.warn("Skipping 'special' file at origin: %s" % 
+                                (filepath_from))
+
+        return list(remote_dirs)
+
+    def utimes(self, file_path, atime_epoch, mtime_epoch):
+        _sftp_utimes(self.__sftp_session_int, 
+                     file_path, 
+                     atime_epoch, 
+                     mtime_epoch)
+
+    def utimes_dt(self, file_path, atime_dt, mtime_dt):
+        _sftp_utimes_dt(self.__sftp_session_int, file_path, atime_dt, mtime_dt)
+        
     @property
     def session_id(self):
         return self.__sftp_session_int
@@ -806,5 +1081,4 @@ class SftpFileObject(object):
 # c_sftp_server_version
 # c_sftp_statvfs
 # c_sftp_statvfs_free
-# c_sftp_utimes
 

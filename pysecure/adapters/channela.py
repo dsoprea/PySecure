@@ -146,6 +146,8 @@ def _ssh_channel_open_session(ssh_channel_int):
 
         raise SshError("Could not open session on channel: %s" % (error))
 
+    logging.debug("Channel open-session successful.")
+
 def _ssh_channel_request_exec(ssh_channel_int, cmd):
     logging.debug("Requesting channel exec.")
 
@@ -159,6 +161,8 @@ def _ssh_channel_request_exec(ssh_channel_int, cmd):
         raise SshError("Could not execute shell request on channel: %s" % 
                        (error))
 
+    logging.debug("Channel-exec successful.")
+
 def _ssh_channel_request_shell(ssh_channel_int):
     logging.debug("Requesting channel shell.")
 
@@ -171,6 +175,8 @@ def _ssh_channel_request_shell(ssh_channel_int):
 
         raise SshError("Shell request failed: %s" % (error))
 
+    logging.debug("Channel-shell request successful.")
+
 def _ssh_channel_request_pty(ssh_channel_int):
     logging.debug("Requesting channel PTY.")
 
@@ -182,6 +188,8 @@ def _ssh_channel_request_pty(ssh_channel_int):
         error = ssh_get_error(ssh_session_int)
 
         raise SshError("PTY request failed: %s" % (error))
+
+    logging.debug("Channel PTY request successful.")
 
 def _ssh_channel_change_pty_size(ssh_channel_int, col, row):
     result = c_ssh_channel_change_pty_size(ssh_channel_int, c_int(col), c_int(row))
@@ -295,12 +303,14 @@ class SshChannel(object):
 
 class RemoteShellProcessor(object):
     def __init__(self, ssh_session, block_size=DEFAULT_SHELL_READ_BLOCK_SIZE):
-        logging.debug("Initializing RSP.")
+        self.__log = logging.getLogger('RSP')
+        self.__log.debug("Initializing RSP.")
 
         self.__ssh_session = ssh_session
         self.__block_size = block_size
 
     def __wait_on_output(self, data_cb):
+        self.__log.debug("Reading chunked output.")
 
         start_at = time()
         while self.__sc.is_open() and self.__sc.is_eof() is False:
@@ -316,6 +326,7 @@ class RemoteShellProcessor(object):
             start_at = time()
 
     def __wait_on_output_all(self, whole_data_cb):
+        self.__log.debug("Reading complete output.")
 
         received = StringIO()
         def data_cb(buffer_):
@@ -326,7 +337,7 @@ class RemoteShellProcessor(object):
 
     def do_command(self, command, block_cb=None, add_nl=True, 
                    drop_last_line=True, drop_first_line=True):
-        logging.debug("Sending command: %s" % (command.rstrip()))
+        self.__log.debug("Sending command: %s" % (command.rstrip()))
 
         if add_nl is True:
             command += '\n'
@@ -353,7 +364,7 @@ class RemoteShellProcessor(object):
             return received
 
     def shell(self, ready_cb, cols=80, rows=24):
-        logging.debug("Starting RSP shell.")
+        self.__log.debug("Starting RSP shell.")
 
         with SshChannel(self.__ssh_session) as sc:
             sc.open_session()
@@ -370,7 +381,7 @@ class RemoteShellProcessor(object):
             self.__wait_on_output_all(welcome_received_cb)
             welcome = welcome_stream.getvalue()
 
-            logging.debug("RSP shell is ready.")
+            self.__log.debug("RSP shell is ready.")
 
             ready_cb(sc, welcome)
             self.__sc = None
