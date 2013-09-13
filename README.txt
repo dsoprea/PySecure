@@ -8,7 +8,7 @@ functionality is slower (1).
 This solution exists as an alternative to Paramiko. I love Paramiko, but as 
 "libssh" is very complete and actively-maintained, it has a greater breadth of 
 functionality, such as support for elliptic-curve encryption (recently added). 
-It is also written in C and battle-hardened, therefore it's faster.
+It is also written in C.
 
 This project is in active development.
 
@@ -25,7 +25,7 @@ X Reverse port forwarding.
 X Remote command (single commands).
 X Remote execution (shell session).
   Threading support.
-  Support X11 forwarding.
+  Support X11 forwarding (waiting on libssh).
 X Added SFTP "mirror" functionality.
 
 Dependencies
