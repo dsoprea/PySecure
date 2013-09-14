@@ -42,9 +42,9 @@ from pysecure.calls.sshi import c_free, c_ssh_pki_import_privkey_file, \
                                 c_ssh_get_version, c_ssh_get_serverbanner, \
                                 c_ssh_disconnect, c_ssh_is_blocking, \
                                 c_ssh_threads_get_noop, \
-                                c_ssh_threads_set_callbacks, \
-                                c_ssh_threads_init, c_ssh_threads_finalize, \
-                                c_ssh_threads_get_type
+                                c_ssh_threads_set_callbacks
+#                                c_ssh_threads_init, c_ssh_threads_finalize, \
+#                                c_ssh_threads_get_type
 
 #                                c_ssh_set_blocking, 
 
@@ -393,19 +393,19 @@ def ssh_threads_set_callbacks(cb):
         error = ssh_get_error(ssh_session_int)
         raise SshError("Could not set callbacks: %s" % (error))
 
-def ssh_threads_init():
-    result = c_ssh_threads_init()
-    if result != SSH_OK:
-        error = ssh_get_error(ssh_session_int)
-        raise SshError("Could not initialize threads: %s" % (error))
-
-def ssh_threads_finalize():
-    c_ssh_threads_finalize()
-
-def ssh_threads_get_type():
-    type_string = c_ssh_threads_get_type()
-    if type_string is None:
-        raise SshError("Threads get-type returned empty.")
+#def ssh_threads_init():
+#    result = c_ssh_threads_init()
+#    if result != SSH_OK:
+#        error = ssh_get_error(ssh_session_int)
+#        raise SshError("Could not initialize threads: %s" % (error))
+#
+#def ssh_threads_finalize():
+#    c_ssh_threads_finalize()
+#
+#def ssh_threads_get_type():
+#    type_string = c_ssh_threads_get_type()
+#    if type_string is None:
+#        raise SshError("Threads get-type returned empty.")
 
 
 class SshSystem(object):

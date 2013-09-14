@@ -1,7 +1,8 @@
 from sys import stdout
 from collections import deque
-from os import listdir, stat
+from os import listdir, stat, lstat
 from os.path import basename, isfile, isdir, islink
+from stat import S_ISCHR, S_ISBLK, S_ISREG, S_ISLNK
 
 from pysecure.exceptions import SshNonblockingTryAgainException
 
@@ -49,7 +50,7 @@ def dumphex(data):
 
             j += 1
 
-        print
+#        print
 
         i += row_size
 
@@ -66,8 +67,23 @@ def sync(cb):
         else:
             break
 
+def stat_is_regular(attr):
+    return S_ISREG(attr.st_mode)
+
+def stat_is_special(attr):
+    return S_ISCHR(attr.st_mode) or S_ISBLK(attr.st_mode)
+
+def stat_is_symlink(attr):
+    return S_ISLNK(attr.st_mode)
+
 def local_recurse(path, dir_cb, listing_cb, max_listing_size=0, 
                   max_depth=None):
+
+    def get_flags_from_attr(attr):
+        return (stat_is_regular(attr), 
+                stat_is_symlink(attr), 
+                stat_is_special(attr))
+
     q = deque([(path, 0)])
     while q:
         (path, current_depth) = q.popleft()
@@ -75,22 +91,29 @@ def local_recurse(path, dir_cb, listing_cb, max_listing_size=0,
         entries = listdir(path)
         collected = []
 
-        def push_entity(entity):
-            collected.append(entity)
+        def push_entry(entry):
+            collected.append(entry)
             if max_listing_size > 0 and \
                max_listing_size <= len(collected):
                 listing_cb(path, collected)
                 del collected[:]
 
+        def push_entry_with_filepath(file_path, name, is_link):
+            attr = lstat(file_path) if is_link else stat(file_path)
+            entry = (name, 
+                     int(attr.st_mtime), 
+                     attr.st_size, 
+                     get_flags_from_attr(attr))
+
+            push_entry(entry)
+
         for name in entries:
             file_path = ('%s/%s' % (path, name))
-            print("ENTRY: %s" % (file_path))
+#            print("ENTRY: %s" % (file_path))
 
             if islink(file_path):
                 if listing_cb is not None:
-                    attr = stat(file_path)
-                    entity = (name, int(attr.st_mtime), attr.st_size, True)
-                    push_entity(entity)
+                    push_entry_with_filepath(file_path, name, True)
             elif isdir(file_path):
                 if name == '.' or name == '..':
                     continue
@@ -104,9 +127,7 @@ def local_recurse(path, dir_cb, listing_cb, max_listing_size=0,
                     q.append((file_path, new_depth))
             elif isfile(file_path):
                 if listing_cb is not None:
-                    attr = stat(file_path)
-                    entity = (name, int(attr.st_mtime), attr.st_size, False)
-                    push_entity(entity)
+                    push_entry_with_filepath(file_path, name, False)
 
         if listing_cb is not None and max_listing_size == 0 or \
            len(collected) > 0:
