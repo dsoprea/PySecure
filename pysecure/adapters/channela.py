@@ -95,6 +95,8 @@ def _ssh_channel_read(ssh_channel_int, count, is_stderr):
 
         # BUG: We're not using the nonblocking variant, but this can still 
         # return SSH_AGAIN due to that call's broken dependencies.
+# TODO: This call might return SSH_AGAIN, even though we should always be 
+#       blocking. Reported as bug #115.
         elif received_bytes == SSH_AGAIN:
             continue
 
@@ -138,7 +140,8 @@ def _ssh_channel_is_open(ssh_channel_int):
 
 def _ssh_channel_open_session(ssh_channel_int):
     logging.debug("Request channel open-session.")
-
+# TODO: ssh_channel_open_session will occasionally return SSH_AGAIN, even when 
+#       non-blocking. Reported as bug #124.
     result = c_ssh_channel_open_session(ssh_channel_int)
     if result == SSH_AGAIN:
         raise SshNonblockingTryAgainException()
@@ -209,9 +212,8 @@ def _ssh_channel_is_eof(ssh_channel_int):
 def _ssh_channel_request_env(ssh_channel_int, name, value):
     logging.debug("Setting remote environment variable [%s] to [%s]." % 
                   (name, value))
-# TODO: We haven't been able to get this to work. We're getting a "Channel 
-#       request env failed" error. We're reasonably sure that the server just
-#       may not support it due to security or otherwise.
+
+# TODO: We haven't been able to get this to work. Reported bug #125.
     result = c_ssh_channel_request_env(ssh_channel_int, 
                                        c_char_p(name), 
                                        c_char_p(value))

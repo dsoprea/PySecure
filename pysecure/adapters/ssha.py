@@ -351,6 +351,8 @@ def _ssh_get_issue_banner(ssh_session_int):
     return message
 
 def _ssh_get_openssh_version(ssh_session_int):
+# TODO: This seems to return a bad version (an integer that doesn't seem to 
+#       correlate to anything). Reported as bug #120.
     openssh_server_version = c_ssh_get_openssh_version(ssh_session_int)
     if openssh_server_version == 0:
         raise SshError("Could not get OpenSSH version. Server may not be "
@@ -361,7 +363,8 @@ def _ssh_get_openssh_version(ssh_session_int):
 def _ssh_get_status(ssh_session_int):
     result = c_ssh_get_status(ssh_session_int)
 
-# TODO: This is returning bad flags (SSH_CLOSED_ERROR is True).
+# TODO: This is returning bad flags (SSH_CLOSED_ERROR is True). Reported as bug 
+#       #119.
     return { 'SSH_CLOSED': (result & SSH_CLOSED) > 0,
              'SSH_READ_PENDING': (result & SSH_READ_PENDING) > 0,
              'SSH_WRITE_PENDING': (result & SSH_WRITE_PENDING) > 0,
@@ -376,6 +379,7 @@ def _ssh_get_version(ssh_session_int):
 
 def _ssh_get_serverbanner(ssh_session_int):
     result = c_ssh_get_serverbanner(ssh_session_int)
+# TODO: The return type is not documented. Reported as bug #122.
     if result is None:
         raise SshError("Could not get server-banner.")
 
@@ -470,6 +474,7 @@ class SshSession(object):
         return _ssh_forward_listen(self.__ssh_session_int, address, port)
 
     def forward_accept(self, timeout_ms):
+# TODO: The timeout is erroneously doubled in this call. Reported as bug #116.
         ssh_channel_int = _ssh_forward_accept(self.__ssh_session_int, \
                                               timeout_ms)
 
@@ -534,7 +539,8 @@ class SshSession(object):
 
     def get_disconnect_message(self):
 # TODO: This seems like it only may be useful under a sudden/spurious 
-#       disconnect.
+#       disconnect, and seems to always fail [otherwise?]. Reported as bug 
+#       #121.
         return _ssh_get_disconnect_message(self.__ssh_session_int)
 
     def get_issue_banner(self):
