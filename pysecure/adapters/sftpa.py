@@ -14,7 +14,9 @@ from pysecure.constants.sftp import O_RDONLY, O_WRONLY, O_RDWR, O_CREAT, \
 from pysecure.types import CTimeval
 from pysecure.constants import SERVER_RESPONSES
 from pysecure.config import DEFAULT_CREATE_MODE, \
-                            MAX_MIRROR_WRITE_CHUNK_SIZE
+                            MAX_MIRROR_WRITE_CHUNK_SIZE, \
+                            MAX_MIRROR_LISTING_CHUNK_SIZE, \
+                            MAX_REMOTE_RECURSION_DEPTH
 from pysecure.calls.sftpi import c_sftp_get_error, c_sftp_new, c_sftp_init, \
                                  c_sftp_open, c_sftp_write, c_sftp_free, \
                                  c_sftp_opendir, c_sftp_closedir, \
@@ -24,7 +26,7 @@ from pysecure.calls.sftpi import c_sftp_get_error, c_sftp_new, c_sftp_init, \
                                  c_sftp_close, c_sftp_rename, c_sftp_chmod, \
                                  c_sftp_chown, c_sftp_mkdir, c_sftp_rmdir, \
                                  c_sftp_stat, c_sftp_utimes, c_sftp_readlink, \
-                                 c_sftp_symlink
+                                 c_sftp_symlink, c_sftp_lstat, c_sftp_unlink
 
 from pysecure.exceptions import SftpError
 
@@ -263,8 +265,8 @@ def _sftp_lstat(sftp_session_int, file_path):
 def _sftp_unlink(sftp_session_int, file_path):
     logging.debug("Deleting file: %s" % (file_path))
 
-    result = c_sftp_lstat(sftp_session_int, c_char_p(file_path))
-
+    result = c_sftp_unlink(sftp_session_int, c_char_p(file_path))
+# TODO: This seems to be a large integer. What is it?
     if result < 0:
         type_ = sftp_get_error(sftp_session_int)
         if type_ >= 0:
@@ -408,8 +410,71 @@ class SftpSession(object):
     def listdir(self, path):
         return _sftp_listdir(self.__sftp_session_int, path)
 
+    def rmtree(self, path):
+        self.__log.debug("REMOTE: Doing recursive remove: %s" % (path))
+
+        # Collect names and heirarchy of subdirectories. Also, delete files 
+        # that we encounter.
+
+        # If we don't put our root path in here, the recursive removal (at the 
+        # end, below) will fail once it get's back to the top.
+        path_relations = { path: None }
+        parents = {}
+        def remote_dir_cb(parent_path, full_path, entry):
+            path_relations[full_path] = parent_path
+            
+            if parent_path not in parents:
+                parents[parent_path] = [full_path]
+            else:
+                parents[parent_path].append(full_path)
+
+        def remote_listing_cb(parent_path, listing):
+            for (file_path, entry) in listing:
+                self.__log.debug("REMOTE: Unlinking: %s" % (file_path))
+                self.unlink(file_path)
+
+        self.recurse(path,
+                     remote_dir_cb, 
+                     remote_listing_cb, 
+                     MAX_MIRROR_LISTING_CHUNK_SIZE)
+
+        # Now, delete the directories. Descend to leaves and work our way back.
+        
+        self.__log.debug("REMOTE: Removing (%d) directories/subdirectories." % 
+                         (len(path_relations)))
+
+        def remove_directory(node_path, depth=0):
+            if depth > MAX_REMOTE_RECURSION_DEPTH:
+                raise SftpError("Remote rmtree recursed too deeply. Either "
+                                "the directories run very deep, or we've "
+                                "encountered a cycle (probably via hard-"
+                                "links).")
+
+            if node_path in parents:
+                while parents[node_path]:
+                    remove_directory(parents[node_path][0], depth + 1)
+                    del parents[node_path][0]
+            
+            self.__log.debug("REMOTE: Removing directory: %s" % (node_path))
+
+            self.rmdir(node_path)
+
+            # All children subdirectories have been deleted. Delete our parent
+            # record.
+            
+            try:
+                del parents[node_path]
+            except KeyError:
+                pass
+
+            # Delete the mapping from us to our parent.
+
+            del path_relations[node_path]
+
+        remove_directory(path)
+
     def recurse(self, path, dir_cb, listing_cb, max_listing_size=0, 
-                max_depth=None):
+                max_depth=MAX_REMOTE_RECURSION_DEPTH):
         """Recursively iterate a directory. Invoke callbacks for directories 
         and entries (both are optional, but it doesn't make sense unless one is 
         provided). "max_listing_size" will allow for the file-listing to be 
@@ -424,8 +489,12 @@ class SftpSession(object):
         def push_file(path, file_path, entry):
             collected.append((file_path, entry))
             if max_listing_size > 0 and \
-               max_listing_size <= len(collected):
+               len(collected) >= max_listing_size:
                 listing_cb(path, collected)
+
+                # Clear contents on the list. We delete it this way so that 
+                # we're only -modifying- the list rather than replacing it (a 
+                # requirement of a closure).
                 del collected[:]
 
         while q:
@@ -446,13 +515,15 @@ class SftpSession(object):
 
                     new_depth = current_depth + 1
                     
-                    if max_depth is not None and max_depth >= new_depth:
+                    if max_depth is None or new_depth <= max_depth:
                         q.append((file_path, new_depth))
-                elif entry.is_regular and listing_cb is not None:
-                    push_file(path, file_path, entry)
+                elif entry.is_regular:
+                    if listing_cb is not None:
+                        push_file(path, file_path, entry)
 
-            if listing_cb is not None and max_listing_size == 0 or len(collected) > 0:
-                listing_cb(path, collected)
+        if listing_cb is not None and (max_listing_size == 0 or 
+                                       len(collected) > 0):
+            listing_cb(path, collected)
 
     def write_to_local(self, filepath_from, filepath_to, mtime_dt=None):
         """Open a remote file and write it locally."""
