@@ -175,18 +175,3 @@ c_ssh_threads_set_callbacks = libssh.ssh_threads_set_callbacks
 c_ssh_threads_set_callbacks.argtypes = [c_void_p]
 c_ssh_threads_set_callbacks.restype = c_int
 
-# int ssh_threads_init(void);
-#c_ssh_threads_init = libssh.ssh_threads_init
-#c_ssh_threads_init.argtypes = []
-#c_ssh_threads_init.restype = c_int
-
-# void ssh_threads_finalize(void);
-#c_ssh_threads_finalize = libssh.ssh_threads_finalize
-#c_ssh_threads_finalize.argtypes = []
-#c_ssh_threads_finalize.restype = None
-
-# const char *ssh_threads_get_type(void);
-#c_ssh_threads_get_type = libssh.ssh_threads_get_type
-#c_ssh_threads_get_type.argtypes = []
-#c_ssh_threads_get_type.restype = c_char_p
-
