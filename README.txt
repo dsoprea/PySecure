@@ -31,7 +31,7 @@ X Added SFTP "mirror" functionality.
 Dependencies
 ============
 
-> libssh
+> libssh 0.6.0rc1
 
 
 Common Setup Code for Examples
