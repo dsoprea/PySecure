@@ -1,3 +1,5 @@
+from os import environ
+
 DEFAULT_CREATE_MODE = 0o644
 DEFAULT_EXECUTE_READ_BLOCK_SIZE = 8192
 NONBLOCK_READ_TIMEOUT_MS = 1500
@@ -6,10 +8,5 @@ MAX_MIRROR_LISTING_CHUNK_SIZE = 5
 MAX_MIRROR_WRITE_CHUNK_SIZE = 8192
 MAX_REMOTE_RECURSION_DEPTH = 8
 
-try:
-    from pysecure import development
-except ImportError:
-    IS_DEVELOPMENT = False
-else:
-    IS_DEVELOPMENT = True
+IS_DEVELOPMENT = environ.get('DEBUG', False)
 

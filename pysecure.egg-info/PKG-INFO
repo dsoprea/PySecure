@@ -1,0 +1,19 @@
+Metadata-Version: 1.1
+Name: pysecure
+Version: 0.7.5
+Summary: A complete Python SSH/SFTP library based on libssh.
+Home-page: https://github.com/dsoprea/PySecure
+Author: Dustin Oprea
+Author-email: myselfasunder@gmail.com
+License: GPL2
+Description: A complete Python SSH/SFTP library based on libssh.
+Keywords: ssh sftp tcp
+Platform: UNKNOWN
+Classifier: Development Status :: 3 - Alpha
+Classifier: Intended Audience :: Developers
+Classifier: License :: OSI Approved :: GNU General Public License v2 (GPLv2)
+Classifier: Programming Language :: Python
+Classifier: Topic :: System :: Networking
+Classifier: Topic :: Software Development :: Libraries :: Python Modules
+Classifier: Topic :: System :: System Shells
+Classifier: Topic :: Terminals

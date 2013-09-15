@@ -1,6 +1,6 @@
 from setuptools import setup, find_packages
 
-version = '0.7.0'
+version = '0.7.5'
 
 setup(name='pysecure',
       version=version,
@@ -21,9 +21,9 @@ A complete Python SSH/SFTP library based on libssh.""",
       author_email='myselfasunder@gmail.com',
       url='https://github.com/dsoprea/PySecure',
       license='GPL2',
-      packages=['pysecure'],
+      packages=['pysecure', 'pysecure.adapters', 'pysecure.calls', 'pysecure.constants'],
       include_package_data=True,
-      zip_safe=True,
+      zip_safe=False,
       install_requires=[],
       entry_points="""
       # -*- Entry points: -*-

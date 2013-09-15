@@ -28,10 +28,21 @@ X Remote execution (shell session).
   Support X11 forwarding (waiting on libssh).
 X Added SFTP "mirror" functionality.
 
+
 Dependencies
 ============
 
 > libssh 0.6.0rc1
+
+
+Installing
+==========
+
+Just expand, and make sure PYTHONPATH includes the directory.
+
+NOTE: Though this project is on PyPI, it's -highly- recommended to use
+      "easy_install" to get it, rather than "pip". The latter has the tendency
+      to not get the latest version.
 
 
 Common Setup Code for Examples
