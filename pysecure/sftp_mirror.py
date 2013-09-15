@@ -12,8 +12,15 @@ from pysecure.exceptions import SftpAlreadyExistsError
 
 
 class SftpMirror(object):
-    def __init__(self, sftp):
+    def __init__(self, sftp, allow_creates=True, allow_deletes=True, 
+                 create_cb=None, delete_cb=None):
         self.__sftp_session = sftp
+
+        self.__allow_creates = allow_creates
+        self.__allow_deletes = allow_deletes
+        self.__create_cb = create_cb
+        self.__delete_cb = delete_cb
+
         self.__log = logging.getLogger('SftpMirror')
 
     def mirror(self, handler, path_from, path_to, log_files=False):
@@ -149,65 +156,80 @@ class SftpMirror(object):
         self.__log.debug("Removing (%d) directories." % (len(deleted_dirs)))
 
         # Delete all FROM-deleted non-directory entries, regardless of type.
-        for (name, mtime, size, is_link) in deleted_entities:
-            file_path = ('%s/%s' % (path_to, name))
-            self.__log.debug("UPDATE: Removing TO file-path: %s" % 
-                             (file_path))
 
-            unlink_(file_path)
+        if self.__allow_deletes is True:
+            for (name, mtime, size, is_link) in deleted_entities:
+                file_path = ('%s/%s' % (path_to, name))
+                self.__log.debug("UPDATE: Removing TO file-path: %s" % 
+                                 (file_path))
+
+                if self.__delete_cb is None or \
+                   self.__delete_cb(file_path, (mtime, size, is_link)) is True:
+                    unlink_(file_path)
 
         # Delete all FROM-deleted directories. We do this after the 
         # individual files are created so that, if all of the files from the
         # directory are to be removed, we can show progress for each file 
         # rather than blocking on a tree-delete just to error-out on the 
         # unlink()'s, later.
-        for name in deleted_dirs:
-            final_path = ('%s/%s' % (path_to, name))
-            self.__log.debug("UPDATE: Removing TO directory: %s" % 
-                             (final_path))
+        if self.__allow_deletes is True:
+            for name in deleted_dirs:
+                final_path = ('%s/%s' % (path_to, name))
+                self.__log.debug("UPDATE: Removing TO directory: %s" % 
+                                 (final_path))
 
-            rmtree_(final_path)
+                if self.__delete_cb is None or \
+                   self.__delete_cb(final_path, None) is True:
+                    rmtree_(final_path)
 
         # Create new directories.
-        for name in new_dirs:
-            final_path = ('%s/%s' % (path_to, name))
-            self.__log.debug("UPDATE: Creating TO directory: %s" % 
-                             (final_path))
+        if self.__allow_creates is True:
+            for name in new_dirs:
+                final_path = ('%s/%s' % (path_to, name))
+                self.__log.debug("UPDATE: Creating TO directory: %s" % 
+                                 (final_path))
 
-            mkdir_(final_path)
+                if self.__create_cb is None or \
+                   self.__create_cb(final_path, None) is True:
+                    mkdir_(final_path)
 
         (from_dirs, from_entities, from_files, from_attributes) = from_tuple
 
         # Write new/changed files. Handle all but "unknown" file types.
-        for (name, mtime, size, is_link) in new_entities:
-            attr = from_attributes[name]
-            (mtime_dt, (is_regular, is_symlink, is_special)) = attr
-            
-            filepath_from = ('%s/%s' % (path_from, name))
-            filepath_to = ('%s/%s' % (path_to, name))
+        if self.__allow_creates is True:
+            for (name, mtime, size, is_link) in new_entities:
+                attr = from_attributes[name]
+                (mtime_dt, (is_regular, is_symlink, is_special)) = attr
 
-            if is_regular:
-                self.__log.debug("UPDATE: Creating regular TO file-path: "
-                                 "%s" % (filepath_to))
+                filepath_from = ('%s/%s' % (path_from, name))
+                filepath_to = ('%s/%s' % (path_to, name))
 
-                copy_(filepath_from, 
-                                    filepath_to, 
-                                    mtime_dt)
+                if self.__create_cb is not None and \
+                   self.__create_cb(filepath_to, (mtime, size, is_link)) is False:
+                    continue
+                
+                if is_regular:
+                    self.__log.debug("UPDATE: Creating regular TO file-path: "
+                                     "%s" % (filepath_to))
 
-            elif is_symlink:
-                linked_to = self.__sftp_session.readlink(filepath_from)
+                    copy_(filepath_from, 
+                                        filepath_to, 
+                                        mtime_dt)
 
-                self.__log.debug("UPDATE: Creating symlink at [%s] to [%s]." % 
-                                 (filepath_to, linked_to))
-            
-                # filepath_to: The physical file.
-                # linked_to: The target.
-                symlink_(linked_to, filepath_to)
+                elif is_symlink:
+                    linked_to = self.__sftp_session.readlink(filepath_from)
 
-            elif is_special:
-                # SSH can't indulge us for devices, etc..
-                self.__log.warn("Skipping 'special' file at origin: %s" % 
-                                (filepath_from))
+                    self.__log.debug("UPDATE: Creating symlink at [%s] to [%s]." % 
+                                     (filepath_to, linked_to))
+                
+                    # filepath_to: The physical file.
+                    # linked_to: The target.
+                    symlink_(linked_to, filepath_to)
+
+                elif is_special:
+                    # SSH can't indulge us for devices, etc..
+                    self.__log.warn("Skipping 'special' file at origin: %s" % 
+                                    (filepath_from))
 
         return list(from_dirs)
 
