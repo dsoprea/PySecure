@@ -8,6 +8,7 @@ pysecure/error.py
 pysecure/exceptions.py
 pysecure/library.py
 pysecure/log_config.py
+pysecure/sftp_mirror.py
 pysecure/types.py
 pysecure/utility.py
 test/test_base.py
