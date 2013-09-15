@@ -8,6 +8,7 @@ from time import mktime
 
 from pysecure.config import MAX_MIRROR_LISTING_CHUNK_SIZE
 from pysecure.utility import local_recurse
+from pysecure.exceptions import SftpAlreadyExistsError
 
 
 class SftpMirror(object):
@@ -15,8 +16,12 @@ class SftpMirror(object):
         self.__sftp_session = sftp
         self.__log = logging.getLogger('SftpMirror')
 
-    def mirror_to_local_recursive(self, path_from, path_to, log_files=False):
-        """Recursively mirror the contents of "path_from" into "path_to"."""
+    def mirror(self, handler, path_from, path_to, log_files=False):
+        """Recursively mirror the contents of "path_from" into "path_to". 
+        "handler" should be self.mirror_to_local_no_recursion or 
+        self.mirror_to_remote_no_recursion to represent which way the files are
+        moving.
+        """
     
         q = deque([''])
         while q:
@@ -25,8 +30,7 @@ class SftpMirror(object):
             full_from = ('%s/%s' % (path_from, path)) if path else path_from
             full_to = ('%s/%s' % (path_to, path)) if path else path_to
 
-            subdirs = self.__mirror_to_local_no_recursion(full_from, full_to, 
-                                                        log_files)
+            subdirs = handler(full_from, full_to, log_files)
             for subdir in subdirs:
                 q.append(('%s/%s' % (path, subdir)) if path else subdir)
 
@@ -56,7 +60,7 @@ class SftpMirror(object):
                       MAX_MIRROR_LISTING_CHUNK_SIZE, 
                       0)
 
-        self.__log.debug("LOCAL:\n(%d) directories\n(%d) files found." % 
+        self.__log.debug("TO:\n(%d) directories\n(%d) files found." % 
                          (len(local_dirs), len(local_files)))
 
         return (local_dirs, local_entities, local_files, local_attributes)
@@ -88,7 +92,7 @@ class SftpMirror(object):
                                     MAX_MIRROR_LISTING_CHUNK_SIZE,
                                     0)
 
-        self.__log.debug("REMOTE:\n(%d) directories\n(%d) files found." % 
+        self.__log.debug("FROM:\n(%d) directories\n(%d) files found." % 
                          (len(remote_dirs), len(remote_files)))
 
         return (remote_dirs, remote_entities, remote_files, remote_attributes)
@@ -113,7 +117,7 @@ class SftpMirror(object):
             for deleted_dir in deleted_dirs:
                 logging.debug("Will DELETE directory: %s" % (deleted_dir))
 
-        # Get the files from remote that aren't identical to existing local 
+        # Get the files from FROM that aren't identical to existing TO 
         # entries. These will be copied.
         new_entities = from_entities - to_entities
 
@@ -121,7 +125,7 @@ class SftpMirror(object):
             for new_entity in new_entities:
                 logging.debug("Will CREATE file: %s" % (new_entity[0]))
 
-        # Get the files from local that aren't identical to existing remote
+        # Get the files from TO that aren't identical to existing FROM
         # entries. These will be deleted.
         deleted_entities = to_entities - from_entities
 
@@ -130,20 +134,12 @@ class SftpMirror(object):
                 logging.debug("Will DELETE file: %s" % (deleted_entity[0]))
 
         self.__log.debug("DELTA:\n(%d) new directories\n(%d) deleted "
-                         "directories\n(%d) new local files\n(%d) deleted "
-                         "local files" % 
+                         "directories\n(%d) new files\n(%d) deleted "
+                         "files" % 
                          (len(new_dirs), len(deleted_dirs), 
                           len(new_entities), len(deleted_entities)))
 
         return (new_dirs, deleted_dirs, new_entities, deleted_entities)
-
-    def __collect_deltas(self, path_from, path_to, log_files=False):
-        from_tuple = self.__get_remote_files(path_from)
-        to_tuple = self.__get_local_files(path_to)
-
-        delta_tuple = self.__get_deltas(from_tuple, to_tuple, log_files)
-
-        return (from_tuple, to_tuple, delta_tuple)
 
     def __fix_deltas_at_target(self, context, ops):
         (from_tuple, path_from, path_to, delta_tuple) = context
@@ -152,22 +148,22 @@ class SftpMirror(object):
 
         self.__log.debug("Removing (%d) directories." % (len(deleted_dirs)))
 
-        # Delete all remote-deleted non-directory entries, regardless of type.
+        # Delete all FROM-deleted non-directory entries, regardless of type.
         for (name, mtime, size, is_link) in deleted_entities:
             file_path = ('%s/%s' % (path_to, name))
-            self.__log.debug("UPDATE: Removing local file-path: %s" % 
+            self.__log.debug("UPDATE: Removing TO file-path: %s" % 
                              (file_path))
 
             unlink_(file_path)
 
-        # Delete all remote-deleted directories. We do this after the 
+        # Delete all FROM-deleted directories. We do this after the 
         # individual files are created so that, if all of the files from the
         # directory are to be removed, we can show progress for each file 
         # rather than blocking on a tree-delete just to error-out on the 
         # unlink()'s, later.
         for name in deleted_dirs:
             final_path = ('%s/%s' % (path_to, name))
-            self.__log.debug("UPDATE: Removing local directory: %s" % 
+            self.__log.debug("UPDATE: Removing TO directory: %s" % 
                              (final_path))
 
             rmtree_(final_path)
@@ -175,7 +171,7 @@ class SftpMirror(object):
         # Create new directories.
         for name in new_dirs:
             final_path = ('%s/%s' % (path_to, name))
-            self.__log.debug("UPDATE: Creating local directory: %s" % 
+            self.__log.debug("UPDATE: Creating TO directory: %s" % 
                              (final_path))
 
             mkdir_(final_path)
@@ -191,7 +187,7 @@ class SftpMirror(object):
             filepath_to = ('%s/%s' % (path_to, name))
 
             if is_regular:
-                self.__log.debug("UPDATE: Creating regular local file-path: "
+                self.__log.debug("UPDATE: Creating regular TO file-path: "
                                  "%s" % (filepath_to))
 
                 copy_(filepath_from, 
@@ -215,7 +211,21 @@ class SftpMirror(object):
 
         return list(from_dirs)
 
-    def __mirror_to_local_no_recursion(self, path_from, path_to, 
+    def __get_local_ops(self):
+        return (unlink, 
+                rmtree, 
+                mkdir, 
+                self.__sftp_session.write_to_local, 
+                symlink)
+
+    def __get_remote_ops(self):
+        return (self.__sftp_session.unlink,
+                self.__sftp_session.rmtree,
+                self.__sftp_session.mkdir,
+                self.__sftp_session.write_to_remote,
+                self.__sftp_session.symlink)
+
+    def mirror_to_local_no_recursion(self, path_from, path_to, 
                                      log_files=False):
         """Mirror a directory without descending into directories. Return a 
         list of subdirectory names (do not include full path). We will unlink 
@@ -224,8 +234,6 @@ class SftpMirror(object):
         what little we could find, that unlinking is, usually, quicker than 
         truncating.
         """
-
-        # Make sure the destination exists.
 
         self.__log.debug("Ensuring local target directory exists: %s" % 
                          (path_to))
@@ -239,15 +247,37 @@ class SftpMirror(object):
             already_exists = False
             self.__log.debug("Local target created.")
 
-        delta_result = self.__collect_deltas(path_from, path_to, log_files)
-        (from_tuple, to_tuple, delta_tuple) = delta_result
+        from_tuple = self.__get_remote_files(path_from)
+        to_tuple = self.__get_local_files(path_to)
+        delta_tuple = self.__get_deltas(from_tuple, to_tuple, log_files)
 
         context = (from_tuple, path_from, path_to, delta_tuple)
-        ops = (unlink, 
-               rmtree, 
-               mkdir, 
-               self.__sftp_session.write_to_local, 
-               symlink)
+        ops = self.__get_local_ops()
+
+        return self.__fix_deltas_at_target(context, ops)
+
+    def mirror_to_remote_no_recursion(self, path_from, path_to, 
+                                      log_files=False):
+
+        self.__log.debug("Ensuring remote target directory exists: %s" % 
+                         (path_to))
+
+        try:
+            self.__sftp_session.mkdir(path_to)
+        except SftpAlreadyExistsError:
+            already_exists = True
+            self.__log.debug("Remote target already exists.")
+        else:
+            already_exists = False
+            self.__log.debug("Remote target created.")
+
+
+        from_tuple = self.__get_local_files(path_from)
+        to_tuple = self.__get_remote_files(path_to)
+        delta_tuple = self.__get_deltas(from_tuple, to_tuple, log_files)
+
+        context = (from_tuple, path_from, path_to, delta_tuple)
+        ops = self.__get_remote_ops()
 
         return self.__fix_deltas_at_target(context, ops)
 

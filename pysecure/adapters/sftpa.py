@@ -28,7 +28,7 @@ from pysecure.calls.sftpi import c_sftp_get_error, c_sftp_new, c_sftp_init, \
                                  c_sftp_stat, c_sftp_utimes, c_sftp_readlink, \
                                  c_sftp_symlink, c_sftp_lstat, c_sftp_unlink
 
-from pysecure.exceptions import SftpError
+from pysecure.exceptions import SftpError, SftpAlreadyExistsError
 
 def sftp_get_error(sftp_session_int):
     return c_sftp_get_error(sftp_session_int)
@@ -220,12 +220,20 @@ def _sftp_chown(sftp_session_int, file_path, uid, gid):
                             "There was an unspecified error." % 
                             (file_path, mode))
 
-def _sftp_mkdir(sftp_session_int, path, mode):
+def _sftp_mkdir(sftp_session_int, path, mode, check_exists_on_fail=True):
     logging.debug("Creating directory: %s" % (path))
 
     result = c_sftp_mkdir(sftp_session_int, c_char_p(path), c_int(mode))
 
     if result < 0:
+        if check_exists_on_fail is not False:
+            try:
+                _sftp_stat(sftp_session_int, path)
+            except SftpError:
+                pass
+            else:
+                raise SftpAlreadyExistsError("Path already exists: %s" % (path))
+
         type_ = sftp_get_error(sftp_session_int)
         if type_ >= 0:
             raise SftpError("MKDIR of [%s] for mode [%o] failed: %s" %
@@ -528,8 +536,8 @@ class SftpSession(object):
     def write_to_local(self, filepath_from, filepath_to, mtime_dt=None):
         """Open a remote file and write it locally."""
 
-        self.__log.debug("Writing [%s] -> [%s]." % (filepath_from, 
-                                                    filepath_to))
+        self.__log.debug("Writing R[%s] -> L[%s]." % (filepath_from, 
+                                                      filepath_to))
 
         with SftpFile(self, filepath_from, 'r') as sf_from:
             with file(filepath_to, 'w') as file_to:
@@ -545,6 +553,26 @@ class SftpSession(object):
 
         mtime_epoch = mktime(mtime_dt.timetuple())
         utime(filepath_to, (mtime_epoch, mtime_epoch))
+    
+    def write_to_remote(self, filepath_from, filepath_to, mtime_dt=None):
+        """Open a local file and write it remotely."""
+
+        self.__log.debug("Writing L[%s] -> R[%s]." % (filepath_from, 
+                                                      filepath_to))
+
+        with file(filepath_from, 'r') as file_from:
+            with SftpFile(self, filepath_to, 'w') as sf_to:
+                while 1:
+                    part = file_from.read(MAX_MIRROR_WRITE_CHUNK_SIZE)
+                    sf_to.write(part)
+
+                    if len(part) < MAX_MIRROR_WRITE_CHUNK_SIZE:
+                        break
+
+        if mtime_dt is None:
+            mtime_dt = datetime.now()
+
+        self.utimes_dt(filepath_to, mtime_dt, mtime_dt)
     
     def utimes(self, file_path, atime_epoch, mtime_epoch):
         _sftp_utimes(self.__sftp_session_int, 
@@ -806,7 +834,7 @@ class SftpFileObject(object):
                 (self.mode, self.name.replace('"', '\\"')))
 
     def write(self, buffer_):
-        self.__log.debug("Writing (%d) bytes." % (len(buffer_)))
+#        self.__log.debug("Writing (%d) bytes." % (len(buffer_)))
         self.__sf.write(buffer_)
 
     def read(self, size=None):
@@ -823,8 +851,8 @@ class SftpFileObject(object):
         received_bytes = 0
         while 1:
             partial = self.__sf.read(block_size)
-            self.__log.debug("Reading (%d) bytes. (%d) bytes returned." % 
-                             (block_size, len(partial)))
+#            self.__log.debug("Reading (%d) bytes. (%d) bytes returned." % 
+#                             (block_size, len(partial)))
 
             buffers.append(partial)
             received_bytes += len(partial)

@@ -4,6 +4,9 @@ class SftpException(Exception):
 class SftpError(SftpException):
     pass
 
+class SftpAlreadyExistsError(SftpError):
+    pass
+
 class SshException(Exception):
     pass
 
