@@ -123,6 +123,24 @@ Read a file:
     
             print("Read (%d) bytes." % (len(buffer_)))
 
+Mirroring:
+
+    from pysecure.sftp_mirror import SftpMirror
+
+    mirror = SftpMirror(sftp)
+
+    # Mirror from server to local.
+    mirror.mirror(mirror.mirror_to_local_no_recursion, 
+                  "Pictures", 
+                  "/tmp/Pictures")
+
+    # Mirror from local to server.
+    mirror.mirror(mirror.mirror_to_remote_no_recursion, 
+                  "/home/dustin/Pictures", 
+                  "/tmp/RemotePictures")
+
+    Mirroring will ignore special (device) files. It also won't specially 
+    handle hard-links.
 
 Port-Forwarding Examples
 ========================
