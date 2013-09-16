@@ -1,6 +1,6 @@
 #!/usr/bin/env python2.7
 
-from test_base import connect_ssh
+from test_base import connect_ssh_test
 
 def ssh_cb(ssh):
     def build_body(status_code, status_string, content):
@@ -74,5 +74,5 @@ Content-Length: %(length)d
             sc.write(payload)
             print("Sent answer.")
 
-connect_ssh(ssh_cb)
+connect_ssh_test(ssh_cb)
 

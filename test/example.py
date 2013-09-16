@@ -1,9 +1,8 @@
 #!/usr/bin/env python2.7
 
-from test_base import connect_sftp
 from pysecure.sftp_mirror import SftpMirror
 
-from datetime import datetime
+from test_base import connect_sftp_test, connect_ssh_test
 
 def sftp_cb(ssh, sftp):
     mirror = SftpMirror(sftp)
@@ -18,5 +17,5 @@ def sftp_cb(ssh, sftp):
                   "/tmp/RemotePictures", 
                   log_files=True)
 
-connect_sftp(sftp_cb)
+connect_sftp_test(sftp_cb)
 

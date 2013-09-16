@@ -219,20 +219,20 @@ def _ssh_userauth_password(ssh_session_int, username, password):
 
     _check_auth_response(result)
 
-def _ssh_userauth_privatekey_file(ssh_session_int, username, filepath, 
-                                  passphrase=None):
-
-    logging.debug("Authenticating with a private-key for user [%s]." % 
-                  (username))
-
-    result = c_ssh_userauth_privatekey_file(ssh_session_int, \
-                                            c_char_p(username), \
-                                            c_char_p(filepath), \
-                                            c_char_p(passphrase))
-
-    _check_auth_response(result)
-
-    logging.debug("Private-key authenticated successfully.")
+#def _ssh_userauth_privatekey_file(ssh_session_int, username, filepath, 
+#                                  passphrase=None):
+#
+#    logging.debug("Authenticating with a private-key for user [%s]." % 
+#                  (username))
+#
+#    result = c_ssh_userauth_privatekey_file(ssh_session_int, \
+#                                            c_char_p(username), \
+#                                            c_char_p(filepath), \
+#                                            c_char_p(passphrase))
+#
+#    _check_auth_response(result)
+#
+#    logging.debug("Private-key authenticated successfully.")
 
 def _ssh_init():
     result = c_ssh_init()
@@ -280,9 +280,9 @@ def _ssh_key_new():
 
     return key
 
-def _ssh_userauth_publickey(ssh_session_int, username, priv_key):
+def _ssh_userauth_publickey(ssh_session_int, priv_key):
     result = c_ssh_userauth_publickey(ssh_session_int, 
-                                      c_char_p(username), 
+                                      None, 
                                       priv_key)
 
     _check_auth_response(result)
@@ -489,18 +489,18 @@ class SshSession(object):
     def userauth_password(self, username, password):
         return _ssh_userauth_password(self.__ssh_session_int, username, password)
 
-    def userauth_privatekey_file(self, username, filepath, passphrase=None):
-        """This is the legacy function."""
+#    def userauth_privatekey_file(self, username, filepath, passphrase=None):
+#        """This is the legacy function."""
+#
+#        return _ssh_userauth_privatekey_file(self.__ssh_session_int, 
+#                                             username, 
+#                                             filepath, 
+#                                             passphrase)
 
-        return _ssh_userauth_privatekey_file(self.__ssh_session_int, 
-                                             username, 
-                                             filepath, 
-                                             passphrase)
-
-    def userauth_publickey(self, username, privkey):
+    def userauth_publickey(self, privkey):
         """This is the recommended function. Supports EC keys."""
     
-        return _ssh_userauth_publickey(self.__ssh_session_int, username, privkey)
+        return _ssh_userauth_publickey(self.__ssh_session_int, privkey)
 
     def execute(self, cmd, block_size=DEFAULT_EXECUTE_READ_BLOCK_SIZE):
         """Execute a remote command. This functionality does not support more 

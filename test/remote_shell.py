@@ -2,7 +2,7 @@
 
 from pysecure.adapters.channela import RemoteShellProcessor
 
-from test_base import connect_ssh
+from test_base import connect_ssh_test
 
 def ssh_cb(ssh):
     rsp = RemoteShellProcessor(ssh)
@@ -21,5 +21,5 @@ def ssh_cb(ssh):
 
     rsp.shell(shell_context_cb)
 
-connect_ssh(ssh_cb)
+connect_ssh_test(ssh_cb)
 

@@ -4,7 +4,7 @@ from sys import stdout
 
 from pysecure.adapters.sftpa import SftpFile
 
-from test_base import connect_sftp
+from test_base import connect_sftp_test
 
 def sftp_cb(ssh, sftp):
     with SftpFile(sftp, 'test_doc_rfc1958.txt') as sf:
@@ -17,5 +17,5 @@ def sftp_cb(ssh, sftp):
 
             i += 1
 
-connect_sftp(sftp_cb)
+connect_sftp_test(sftp_cb)
 

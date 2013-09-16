@@ -2,7 +2,7 @@
 
 from time import sleep
 
-from test_base import connect_ssh
+from test_base import connect_ssh_test
 
 def ssh_cb(ssh):
     print("Is blocking: %s" % (ssh.is_blocking()))
@@ -23,5 +23,5 @@ def ssh_cb(ssh):
         while 1:
             sleep(.1)
 
-connect_ssh(ssh_cb)
+connect_ssh_test(ssh_cb)
 

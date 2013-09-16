@@ -1,6 +1,6 @@
 #!/usr/bin/env python2.7
 
-from test_base import connect_sftp
+from test_base import connect_sftp_test
 
 def sftp_cb(ssh, sftp):
     def dir_cb(path, entry):
@@ -12,5 +12,5 @@ def sftp_cb(ssh, sftp):
 
     sftp.recurse('Pictures', dir_cb, listing_cb)
 
-connect_sftp(sftp_cb)
+connect_sftp_test(sftp_cb)
 

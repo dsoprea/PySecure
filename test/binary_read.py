@@ -2,7 +2,7 @@
 
 from pysecure.adapters.sftpa import SftpFile
 
-from test_base import connect_sftp
+from test_base import connect_sftp_test
 
 def sftp_cb(ssh, sftp):
     with SftpFile(sftp, 'test_libgksu2.so.0', 'r') as sf:
@@ -41,5 +41,5 @@ def sftp_cb(ssh, sftp):
 #                    print("Read 2: (%d) bytes" % (len(buffer_)))
 #                    print("Position after read 2: %d" % (sf.position))
 
-connect_sftp(sftp_cb)
+connect_sftp_test(sftp_cb)
 

@@ -45,32 +45,51 @@ NOTE: Though this project is on PyPI, it's -highly- recommended to use
       to not get the latest version.
 
 
+Logging
+=======
+
+To allow for standard logging to go out to the console, import 
+"pysecure.log_config". 
+
+To enable "debug" logging, set the environment variable
+"DEBUG" to "1". 
+
+To enable debug verbosity from the "libssh" library, pass the
+"verbosity" argument into the connect_* functions with a value of True.
+
+
 Common Setup Code for Examples
 ==============================
 
-In the examples below, it is assumed that the following code exists above it:
+To make the examples more concise, some code has been removed, so as to not be 
+repeated in every case.
 
-    from pysecure.adapters.ssha import SshSession, SshConnect, SshSystem, \
-                                       PublicKeyHash
+A complete, working example using some included convenience functions would 
+look like the following:
 
-    user = 'user'
-    host = 'remote_hostname'
-    key_filepath = '/home/user/.ssh/id_dsa'
-    verbosity = 0
+    from pysecure.easy import connect_ssh, connect_sftp, get_key_auth_cb
 
-    with SshSystem():
-        with SshSession(user=user, host=host, verbosity=verbosity) as ssh:
-            with SshConnect(ssh):
-                logging.debug("Ready to authenticate.")
+    user = 'dustin'
+    host = 'localhost'
+    key_filepath = '/home/dustin/.ssh/id_dsa'
 
-                def hostkey_gate(hk, would_accept):
-                    logging.debug("CB HK: %s" % (hk))
-                    logging.debug("CB Would Accept: %s" % (would_accept))
-                    
-                    return would_accept
+    auth_cb = get_key_auth_cb(key_filepath)
 
-                ssh.is_server_known(allow_new=True, cb=hostkey_gate)
-                ssh.userauth_privatekey_file(None, key_filepath, None)
+    # For simple SSH functionality.
+
+    def ssh_cb(ssh):
+        # Main logic, here.
+        pass
+
+    connect_ssh(ssh_cb, user, host, auth_cb)
+
+    # Or, for SFTP-enabled SSH functionality.
+
+    def sftp_cb(ssh, sftp):
+        # Main logic, here.
+        pass
+
+    connect_sftp(sftp_cb, user, host, auth_cb)
 
 
 SFTP Examples
@@ -83,56 +102,48 @@ Calls will have traditional methods, as identified here:
 
 List a directory:
 
-    from pysecure.adapters.sftpa import SftpSession, SftpFile
+    from pysecure.adapters.sftpa import SftpFile
 
-    with SftpSession(ssh) as sftp:
-        print("Name                         Size Perms    Owner\tGroup\n")
-        for attributes in sftp.listdir('.'):
-            print("%-40s %10d %.8o %s(%d)\t%s(%d)" % 
-                  (attributes.name[0:40], attributes.size, 
-                   attributes.permissions, attributes.owner, 
-                   attributes.uid, attributes.group,
-                   attributes.gid))
+    print("Name                         Size Perms    Owner\tGroup\n")
+    for attributes in sftp.listdir('.'):
+        print("%-40s %10d %.8o %s(%d)\t%s(%d)" % 
+              (attributes.name[0:40], attributes.size, 
+               attributes.permissions, attributes.owner, 
+               attributes.uid, attributes.group,
+               attributes.gid))
 
 Recurse a directory:
 
-    with SftpSession(ssh) as sftp:
-        def dir_cb(path, entry):
-            full_path = ('%s/%s' % (path, entry.name))
-            print("DIR: %s" % (full_path))
+    def dir_cb(path, entry):
+        full_path = ('%s/%s' % (path, entry.name))
+        print("DIR: %s" % (full_path))
 
-        def listing_cb(path, list_):
-            print("[%s]: (%d) files" % (path, len(list_)))
+    def listing_cb(path, list_):
+        print("[%s]: (%d) files" % (path, len(list_)))
 
-        sftp.recurse('Pictures', dir_cb, listing_cb)
-
-Mirror a directory:
-
-    with SftpSession(ssh) as sftp:
-        sftp.mirror_to_local_recursive("remote_path", "/tmp/local_target")
+    sftp.recurse('Pictures', dir_cb, listing_cb)
 
 Read a file:
 
-    with SftpSession(ssh) as sftp:
-        with SftpFile(sftp, 'text_file.txt') as sf:
-            # Read through text-file, one line at a time.
-        
-            i = 0
-            for data in sf:
-                stdout.write("> " + data)
+    with SftpFile(sftp, 'text_file.txt') as sf:
+        # Read through text-file, one line at a time.
     
-                if i >= 30:
-                    break
-    
-                i += 1
-    
-        # To read a complete file (binary friendly). It could also be
-        # read one chunk at a time.
-    
-        with SftpFile(sftp, 'binary_file.dat') as sf:
-            buffer_ = sf.read()
-    
-            print("Read (%d) bytes." % (len(buffer_)))
+        i = 0
+        for data in sf:
+            stdout.write("> " + data)
+
+            if i >= 30:
+                break
+
+            i += 1
+
+    # To read a complete file (binary friendly). It could also be
+    # read one chunk at a time.
+
+    with SftpFile(sftp, 'binary_file.dat') as sf:
+        buffer_ = sf.read()
+
+        print("Read (%d) bytes." % (len(buffer_)))
 
 Mirroring:
 

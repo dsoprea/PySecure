@@ -2,7 +2,7 @@
 
 from pysecure.adapters.channela import SshChannel
 
-from test_base import connect_ssh
+from test_base import connect_ssh_test
 
 def ssh_cb(ssh):
     host_remote = 'localhost'
@@ -24,5 +24,5 @@ def ssh_cb(ssh):
         print("Received:\n\n%s" % (received))
 
 
-connect_ssh(ssh_cb)
+connect_ssh_test(ssh_cb)
 
