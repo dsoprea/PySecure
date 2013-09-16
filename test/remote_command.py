@@ -1,13 +1,15 @@
-#!/usr/bin/env python2.7
+from unittest import TestCase
 
 from test_base import connect_ssh_test
 
-def ssh_cb(ssh):
-    data = ssh.execute('lsb_release -a')
-    print(data)
+class RemoteCommandTest(TestCase):
+    def __ssh_cb(self, ssh):
+        data = ssh.execute('lsb_release -a')
+        print(data)
 
-    data = ssh.execute('whoami')
-    print(data)
+        data = ssh.execute('whoami')
+        print(data)
 
-connect_ssh_test(ssh_cb)
+    def test_remote_command(self):
+        connect_ssh_test(self.__ssh_cb)
 

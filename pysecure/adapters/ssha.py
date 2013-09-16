@@ -414,10 +414,16 @@ def ssh_threads_set_callbacks(cb):
 
 class SshSystem(object):
     def __enter__(self):
+        return self.open()
+
+    def open(self):
         logging.debug("Initializing SSH system.")
         _ssh_init()
 
     def __exit__(self, e_type, e_value, e_tb):
+        self.close()
+
+    def close(self):
         logging.debug("Cleaning-up SSH system.")
         _ssh_finalize
 
@@ -434,6 +440,9 @@ class SshSession(object):
 #        self.set_blocking(blocking)
 
     def __enter__(self):
+        return self.open()
+
+    def open(self):
         for k, v in self.__options.items():
             (option_id, type_) = SSH_OPTIONS[k]
             
@@ -459,6 +468,9 @@ class SshSession(object):
         return self
 
     def __exit__(self, e_type, e_value, e_tb):
+        self.close()
+
+    def close(self):
         # _ssh_free doesn't seem to imply a formal disconnect.
         self.disconnect()
 
@@ -573,13 +585,18 @@ class SshConnect(object):
                                          ssh_session)
 
     def __enter__(self):
+        return self.open()
+
+    def open(self):
         logging.debug("Connecting SSH.")
         _ssh_connect(self.__ssh_session_int)
 
     def __exit__(self, e_type, e_value, e_tb):
+        self.close()
+        
+    def close(self):
         logging.debug("Disconnecting SSH.")
         _ssh_disconnect(self.__ssh_session_int)
-
 
 
 class _PublicKeyHashString(object):

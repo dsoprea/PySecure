@@ -2,6 +2,7 @@ README.txt
 setup.py
 pysecure/__init__.py
 pysecure/config.py
+pysecure/easy.py
 pysecure/error.py
 pysecure/exceptions.py
 pysecure/library.py

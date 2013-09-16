@@ -324,7 +324,10 @@ def _sftp_setstat(sftp_session_int, file_path, entry_attributes):
             raise SftpError("Set-stat on [%s] failed. There was an "
                             "unspecified error." % (file_path))
 
-def _sftp_listdir(sftp_session_int, path):
+def _sftp_listdir(sftp_session_int, 
+                  path, 
+                  get_directories=True, 
+                  get_files=True):
     logging.debug("Listing directory: %s" % (path))
 
     with SftpDirectory(sftp_session_int, path) as sd_:
@@ -333,7 +336,9 @@ def _sftp_listdir(sftp_session_int, path):
             if attributes is None:
                 break
 
-            yield attributes
+            if attributes.is_directory is True and get_directories is True or \
+               attributes.is_directory is False and get_files is True:
+                yield attributes
 
         if not _sftp_dir_eof(sd_):
             raise SftpError("We're done iterating the directory, but it's not "
@@ -374,12 +379,18 @@ class SftpSession(object):
                                        (self.__ssh_session_int))
 
     def __enter__(self):
+        return self.open()
+
+    def open(self):
         self.__sftp_session_int = _sftp_new(self.__ssh_session_int)
         _sftp_init(self.__sftp_session_int)
 
         return self
 
     def __exit__(self, e_type, e_value, e_tb):
+        self.close()
+    
+    def close(self):
         _sftp_free(self.__sftp_session_int)
 
     def stat(self, file_path):
@@ -415,8 +426,11 @@ class SftpSession(object):
     def setstat(self, file_path, entry_attributes):
         return _sftp_setstat(self.__sftp_session_int, file_path, entry_attributes)
 
-    def listdir(self, path):
-        return _sftp_listdir(self.__sftp_session_int, path)
+    def listdir(self, path, get_directories=True, get_files=True):
+        return _sftp_listdir(self.__sftp_session_int, 
+                             path, 
+                             get_directories, 
+                             get_files)
 
     def rmtree(self, path):
         self.__log.debug("REMOTE: Doing recursive remove: %s" % (path))
@@ -596,10 +610,16 @@ class SftpDirectory(object):
         self.__path = path
 
     def __enter__(self):
+        return self.open()
+        
+    def open(self):
         self.__sd = _sftp_opendir(self.__sftp_session_int, self.__path)
         return self.__sd
 
     def __exit__(self, e_type, e_value, e_tb):
+        self.close()
+    
+    def close(self):
         _sftp_closedir(self.__sd)
 
 
@@ -653,6 +673,9 @@ class SftpFile(object):
                             (original_om))
 
     def __enter__(self):
+        return self.open()
+        
+    def open(self):
         """This is the only way to open a file resource."""
 
         self.__sf = _sftp_open(self.__sftp_session_int, 
@@ -666,6 +689,9 @@ class SftpFile(object):
         return SftpFileObject(self)
 
     def __exit__(self, e_type, e_value, e_tb):
+        self.close()
+
+    def close(self):
         _sftp_close(self.__sf)
 
     def write(self, buffer_):

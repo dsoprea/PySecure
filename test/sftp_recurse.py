@@ -1,16 +1,18 @@
-#!/usr/bin/env python2.7
+from unittest import TestCase
 
 from test_base import connect_sftp_test
 
-def sftp_cb(ssh, sftp):
-    def dir_cb(path, entry):
-        full_path = ('%s/%s' % (path, entry.name))
-        print("DIR: %s" % (full_path))
+class SftpRecurseTest(TestCase):
+    def __sftp_cb(self, ssh, sftp):
+        def dir_cb(path, entry):
+            full_path = ('%s/%s' % (path, entry.name))
+            print("DIR: %s" % (full_path))
 
-    def listing_cb(path, list_):
-        print("[%s]: (%d) files" % (path, len(list_)))
+        def listing_cb(path, list_):
+            print("[%s]: (%d) files" % (path, len(list_)))
 
-    sftp.recurse('Pictures', dir_cb, listing_cb)
+        sftp.recurse('Pictures', dir_cb, listing_cb)
 
-connect_sftp_test(sftp_cb)
+    def test_sftp_recurse(self):
+        connect_sftp_test(self.__sftp_cb)
 

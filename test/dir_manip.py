@@ -1,10 +1,12 @@
-#!/usr/bin/env python2.7
+from unittest import TestCase
 
 from test_base import connect_sftp_test
 
-def sftp_cb(ssh, sftp):
-    sftp.mkdir("xyz")
-    sftp.rmdir("xyz")
+class DirManipTest(TestCase):
+    def __sftp_cb(self, ssh, sftp):
+        sftp.mkdir("xyz")
+        sftp.rmdir("xyz")
 
-connect_sftp_test(sftp_cb)
+    def test_dir_manip(self):
+        connect_sftp_test(self.__sftp_cb)
 

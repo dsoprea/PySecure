@@ -1,13 +1,15 @@
-#!/usr/bin/env python2.7
+from unittest import TestCase
 
 from pysecure.adapters.sftpa import SftpFile
 
 from test_base import connect_sftp_test
 
-def sftp_cb(ssh, sftp):
-    test_data = '1234'
-    with SftpFile(sftp, 'sftp_write.txt', 'w') as sf:
-        sf.write(test_data)
+class TextWriteTest(TestCase):
+    def __sftp_cb(self, ssh, sftp):
+        test_data = '1234'
+        with SftpFile(sftp, 'sftp_write.txt', 'w') as sf:
+            sf.write(test_data)
 
-connect_sftp_test(sftp_cb)
+    def test_text_write(self):
+        connect_sftp_test(self.__sftp_cb)
 

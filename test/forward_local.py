@@ -1,28 +1,29 @@
-#!/usr/bin/env python2.7
+from unittest import TestCase
 
 from pysecure.adapters.channela import SshChannel
 
 from test_base import connect_ssh_test
 
-def ssh_cb(ssh):
-    host_remote = 'localhost'
-    port_remote = 80
-    host_source = 'localhost'
-    port_local = 1111
-    data = "GET / HTTP/1.1\nHost: localhost\n\n"
+class ForwardLocalTest(TestCase):
+    def __ssh_cb(self, ssh):
+        host_remote = 'localhost'
+        port_remote = 80
+        host_source = 'localhost'
+        port_local = 1111
+        data = "GET / HTTP/1.1\nHost: localhost\n\n"
 
-    with SshChannel(ssh) as sc:
-        sc.open_forward(host_remote, 
-                        port_remote, 
-                        host_source, 
-                        port_local)
+        with SshChannel(ssh) as sc:
+            sc.open_forward(host_remote, 
+                            port_remote, 
+                            host_source, 
+                            port_local)
 
-        sc.write(data)
+            sc.write(data)
 
-        received = sc.read(1024)
+            received = sc.read(1024)
 
-        print("Received:\n\n%s" % (received))
+            print("Received:\n\n%s" % (received))
 
-
-connect_ssh_test(ssh_cb)
+    def test_forward_local(self):
+        connect_ssh_test(self.__ssh_cb)
 
