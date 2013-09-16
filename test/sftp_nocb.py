@@ -25,6 +25,6 @@ class SftpNoCb(TestCase):
         self.__easy.close_ssh()
 
     def test_nocb(self):
-        entries = self.__easy.sftp_session.listdir('.')
+        entries = self.__easy.sftp.listdir('.')
         self.__log.info("(%d) entries returned." % (len(list(entries))))
 

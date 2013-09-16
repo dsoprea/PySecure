@@ -125,7 +125,7 @@ class EasySsh(object):
         self.__sftp_opened = False
 
     @property
-    def ssh_session(self):
+    def ssh(self):
         if self.__ssh_opened is False:
             raise Exception("Can not return an SSH session. A session is not "
                             "open.")
@@ -133,7 +133,7 @@ class EasySsh(object):
         return self.__ssh_session
 
     @property
-    def sftp_session(self):
+    def sftp(self):
         if self.__sftp_opened is False:
             raise Exception("Can not return an SFTP session. A session is not "
                             "open.")
