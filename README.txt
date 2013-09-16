@@ -256,3 +256,37 @@ Remote Shell (efficient for many commands):
         dustin
         $
 
+
+EasySsh
+=======
+
+We always recommend the use of the connect_ssh and connect_sftp calls mentioned 
+above, as they are meant to be used with a "with" block, and will automatically 
+be cleaned-up properly. However, this strategy makes it impossible to keep a 
+connection open while passing control back to the caller of the function, and 
+therefoe requires that a new, subsequent connection is opened for the next 
+operation.
+
+Whereas the above strategy relies on the use of a callback when the SSH or SFTP
+session(s) are ready, we also provide the EasySsh class to make it easy to open
+a connection and close that connection at two separate times.
+
+For example:
+
+    from pysecure.easy import EasySsh, get_key_auth_cb
+
+    auth_cb = get_key_auth_cb(key_filepath)
+    easy = EasySsh(user, host, auth_cb)
+
+    easy.open_ssh()
+    easy.open_sftp()
+
+    # easy.ssh and, if opened, easy.sftp are now ready.
+
+    # Do your logic, here. For example, list directory entries.
+    entries = easy.sftp.listdir('.')
+
+    easy.close_sftp()   # We do this just to be explicit. This will 
+                        # automatically be done at SSH close.
+    easy.close_ssh()
+
