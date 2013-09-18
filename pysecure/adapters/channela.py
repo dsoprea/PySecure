@@ -140,11 +140,8 @@ def _ssh_channel_is_open(ssh_channel_int):
 
 def _ssh_channel_open_session(ssh_channel_int):
     logging.debug("Request channel open-session.")
-# TODO: ssh_channel_open_session will occasionally return SSH_AGAIN, even when 
-#       non-blocking. Reported as bug #124.
+
     result = c_ssh_channel_open_session(ssh_channel_int)
-    if result == SSH_AGAIN:
-        raise SshNonblockingTryAgainException()
     elif result != SSH_OK:
         ssh_session_int = _ssh_channel_get_session(ssh_channel_int)
         error = ssh_get_error(ssh_session_int)

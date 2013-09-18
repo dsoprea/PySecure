@@ -264,9 +264,6 @@ def _ssh_forward_accept(ssh_session_int, timeout_ms):
     that this results in a kernel block until a connection is received.
     """
 
-    # BUG: Due to a bug in libssh, the timeout will be doubled.
-    timeout_ms /= 2
-
     ssh_channel = c_ssh_forward_accept(ssh_session_int, c_int(timeout_ms))
     if ssh_channel is None:
         raise SshTimeoutException()
@@ -329,7 +326,6 @@ def _ssh_is_blocking(ssh_session_int):
     return bool(result)
 
 def _ssh_get_disconnect_message(ssh_session_int):
-# TODO: This never seems to work because an actual disconnect doesn't seem to set its "closed" flag. Reported.
     message = c_ssh_get_disconnect_message(ssh_session_int)
     if message is None:
         return (ssh_get_error_code(ssh_session_int), True)
@@ -351,8 +347,10 @@ def _ssh_get_issue_banner(ssh_session_int):
     return message
 
 def _ssh_get_openssh_version(ssh_session_int):
-# TODO: This seems to return a bad version (an integer that doesn't seem to 
-#       correlate to anything). Reported as bug #120.
+    """Returns an encoded version. Comparisons can be done with the 
+    SSH_INT_VERSION macro.
+    """
+
     openssh_server_version = c_ssh_get_openssh_version(ssh_session_int)
     if openssh_server_version == 0:
         raise SshError("Could not get OpenSSH version. Server may not be "
@@ -379,7 +377,6 @@ def _ssh_get_version(ssh_session_int):
 
 def _ssh_get_serverbanner(ssh_session_int):
     result = c_ssh_get_serverbanner(ssh_session_int)
-# TODO: The return type is not documented. Reported as bug #122.
     if result is None:
         raise SshError("Could not get server-banner.")
 
@@ -396,20 +393,6 @@ def ssh_threads_set_callbacks(cb):
     if result != SSH_OK:
         error = ssh_get_error(ssh_session_int)
         raise SshError("Could not set callbacks: %s" % (error))
-
-#def ssh_threads_init():
-#    result = c_ssh_threads_init()
-#    if result != SSH_OK:
-#        error = ssh_get_error(ssh_session_int)
-#        raise SshError("Could not initialize threads: %s" % (error))
-#
-#def ssh_threads_finalize():
-#    c_ssh_threads_finalize()
-#
-#def ssh_threads_get_type():
-#    type_string = c_ssh_threads_get_type()
-#    if type_string is None:
-#        raise SshError("Threads get-type returned empty.")
 
 
 class SshSystem(object):
@@ -474,9 +457,9 @@ class SshSession(object):
         # _ssh_free doesn't seem to imply a formal disconnect.
         self.disconnect()
 
-#        (message, is_error) = self.get_disconnect_message()
-#        self.__log.debug("Disconnect message: %s (error= %s)" % 
-#                         (message, is_error))
+        (message, is_error) = self.get_disconnect_message()
+        self.__log.debug("Disconnect message: %s (error= %s)" % 
+                         (message, is_error))
 
         self.__log.debug("Freeing SSH session: %d" % (self.__ssh_session_int))
 
@@ -550,9 +533,6 @@ class SshSession(object):
         return ssh_get_error(self.__ssh_session_int)
 
     def get_disconnect_message(self):
-# TODO: This seems like it only may be useful under a sudden/spurious 
-#       disconnect, and seems to always fail [otherwise?]. Reported as bug 
-#       #121.
         return _ssh_get_disconnect_message(self.__ssh_session_int)
 
     def get_issue_banner(self):
