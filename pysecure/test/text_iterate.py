@@ -3,8 +3,7 @@ from unittest import TestCase
 from sys import stdout
 
 from pysecure.adapters.sftpa import SftpFile
-
-from test_base import connect_sftp_test
+from pysecure.test.test_base import connect_sftp_test
 
 class TextIterateTest(TestCase):
     def __sftp_cb(self, ssh, sftp):

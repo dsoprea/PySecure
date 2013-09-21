@@ -1,8 +1,7 @@
 from unittest import TestCase
 
 from pysecure.adapters.channela import SshChannel
-
-from test_base import connect_ssh_test
+from pysecure.test.test_base import connect_ssh_test
 
 class SshStatusesTest(TestCase):
     def __ssh_cb(self, ssh):

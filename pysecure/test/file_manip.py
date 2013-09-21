@@ -1,8 +1,7 @@
 from unittest import TestCase
 
 from pysecure.adapters.sftpa import SftpFile
-
-from test_base import connect_sftp_test
+from pysecure.test.test_base import connect_sftp_test
 
 class FileManipTest(TestCase):
     def __sftp_cb(self, ssh, sftp):

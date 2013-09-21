@@ -2,7 +2,7 @@ import logging
 
 from ctypes import c_char_p, c_void_p, c_ubyte, byref, POINTER, cast, c_uint, \
                    c_int
-from cStringIO import StringIO
+from io import StringIO
 
 from pysecure.exceptions import SshError, SshLoginError, SshHostKeyException, \
                                 SshNonblockingTryAgainException, \
@@ -51,9 +51,10 @@ from pysecure.calls.sshi import c_free, c_ssh_pki_import_privkey_file, \
 
 from pysecure.adapters.channela import SshChannel
 from pysecure.error import ssh_get_error, ssh_get_error_code
+from pysecure.utility import bytify
 
 def _ssh_options_set_string(ssh_session_int, type_, value):
-    value_charp = c_char_p(value)
+    value_charp = c_char_p(bytify(value.encode('ascii')))
 
     result = c_ssh_options_set(ssh_session_int, 
                                c_int(type_), 
@@ -171,7 +172,7 @@ def _ssh_is_server_known(ssh_session_int, allow_new=False, cb=None):
         raise SshHostKeyException("Host key: Failed (unexpected error).")
 
 def _ssh_print_hexa(title, hash_, hlen):
-    c_ssh_print_hexa(c_char_p(title), hash_, hlen)
+    c_ssh_print_hexa(c_char_p(title.encode('ascii')), hash_, hlen)
 
 def _ssh_get_hexa(hash_, hlen):
     hexa = c_ssh_get_hexa(hash_, hlen)
@@ -214,25 +215,10 @@ def _ssh_userauth_password(ssh_session_int, username, password):
     logging.debug("Authenticating with a password for user [%s]." % (username))
     
     result = c_ssh_userauth_password(ssh_session_int, \
-                                     c_char_p(username), \
-                                     c_char_p(password))
+                                     c_char_p(username.encode('ascii')), \
+                                     c_char_p(password.encode('ascii')))
 
     _check_auth_response(result)
-
-#def _ssh_userauth_privatekey_file(ssh_session_int, username, filepath, 
-#                                  passphrase=None):
-#
-#    logging.debug("Authenticating with a private-key for user [%s]." % 
-#                  (username))
-#
-#    result = c_ssh_userauth_privatekey_file(ssh_session_int, \
-#                                            c_char_p(username), \
-#                                            c_char_p(filepath), \
-#                                            c_char_p(passphrase))
-#
-#    _check_auth_response(result)
-#
-#    logging.debug("Private-key authenticated successfully.")
 
 def _ssh_init():
     result = c_ssh_init()
@@ -247,7 +233,7 @@ def _ssh_finalize():
 def _ssh_forward_listen(ssh_session_int, address, port):
     bound_port = c_int()
     result = c_ssh_forward_listen(ssh_session_int, 
-                                  c_char_p(address), 
+                                  c_char_p(address.encode('ascii')), 
                                   port, 
                                   byref(bound_port))
 
@@ -289,8 +275,13 @@ def ssh_pki_import_privkey_file(file_path, pass_phrase=None):
 
     key = c_ssh_key()
 # TODO: This needs to be freed. Use our key class.
-    result = c_ssh_pki_import_privkey_file(c_char_p(file_path), 
-                                           c_char_p(pass_phrase), 
+
+    file_path = file_path.encode('ascii')
+    if pass_phrase is not None:
+        pass_phrase = pass_phrase.encode('ascii')
+    
+    result = c_ssh_pki_import_privkey_file(c_char_p(bytify(file_path)), 
+                                           c_char_p(bytify(pass_phrase)), 
                                            None, 
                                            None, 
                                            byref(key))
@@ -302,24 +293,6 @@ def ssh_pki_import_privkey_file(file_path, pass_phrase=None):
         raise SshError("Could not import key.")
 
     return key
-
-
-#def ssh_key_import_private(ssh_session_int, filename, passphrase=None):
-#    key = ssh_key_new()
-#    result = c_ssh_key_import_private(key,
-#                                      ssh_session_int, 
-#                                      c_char_p(filename), 
-#                                      c_char_p(passphrase))
-#
-#    if result != SSH_OK:
-#        error = ssh_get_error(ssh_session_int)
-#        raise SshError("Could not import private-key from [%s]: %s" % 
-#                       (filename, error))
-#
-#    return key
-
-#def _ssh_set_blocking(ssh_session_int, blocking):
-#    c_ssh_set_blocking(ssh_session_int, c_int(blocking))
 
 def _ssh_is_blocking(ssh_session_int):
     result = c_ssh_is_blocking(ssh_session_int)
@@ -513,7 +486,7 @@ class SshSession(object):
             buffer_ = StringIO()
             while 1:
                 bytes = sc.read(block_size)
-                buffer_.write(bytes)
+                buffer_.write(bytes.decode('ascii'))
                 
                 if len(bytes) < block_size:
                     break

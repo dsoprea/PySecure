@@ -1,8 +1,7 @@
 from unittest import TestCase
-
 from time import sleep
 
-from test_base import connect_ssh_test
+from pysecure.test.test_base import connect_ssh_test
 
 class ForwardX11Test(TestCase):
     def __ssh_cb(self, ssh):

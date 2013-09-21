@@ -2,7 +2,7 @@ import logging
 
 from ctypes import c_char_p, c_void_p, cast, c_uint32, c_int, \
                    create_string_buffer
-from cStringIO import StringIO
+from io import StringIO
 from time import time
 
 from pysecure.config import NONBLOCK_READ_TIMEOUT_MS, \
@@ -10,7 +10,7 @@ from pysecure.config import NONBLOCK_READ_TIMEOUT_MS, \
 from pysecure.constants.ssh import SSH_OK, SSH_ERROR, SSH_AGAIN
 from pysecure.exceptions import SshError, SshNonblockingTryAgainException, \
                                 SshNoDataReceivedException, SshTimeoutException
-from pysecure.utility import sync
+from pysecure.utility import sync, bytify
 from pysecure.calls.channeli import c_ssh_channel_new, \
                                     c_ssh_channel_open_forward, \
                                     c_ssh_channel_write, c_ssh_channel_free, \
@@ -49,9 +49,9 @@ def _ssh_channel_open_forward(ssh_channel_int, host_remote, port_remote,
     logging.debug("Requesting forward on channel.")
 
     result = c_ssh_channel_open_forward(ssh_channel_int, 
-                                        c_char_p(host_remote), 
+                                        c_char_p(host_remote.encode('ascii')), 
                                         c_int(port_remote), 
-                                        c_char_p(host_source), 
+                                        c_char_p(host_source.encode('ascii')), 
                                         c_int(port_local))
 
     if result == SSH_AGAIN:
@@ -153,7 +153,8 @@ def _ssh_channel_open_session(ssh_channel_int):
 def _ssh_channel_request_exec(ssh_channel_int, cmd):
     logging.debug("Requesting channel exec.")
 
-    result = c_ssh_channel_request_exec(ssh_channel_int, c_char_p(cmd))
+    result = c_ssh_channel_request_exec(ssh_channel_int, 
+                                        c_char_p(cmd.encode('ascii')))
     if result == SSH_AGAIN:
         raise SshNonblockingTryAgainException()
     elif result != SSH_OK:
@@ -212,8 +213,8 @@ def _ssh_channel_request_env(ssh_channel_int, name, value):
 
 # TODO: We haven't been able to get this to work. Reported bug #125.
     result = c_ssh_channel_request_env(ssh_channel_int, 
-                                       c_char_p(name), 
-                                       c_char_p(value))
+                                       c_char_p(name.encode('ascii')), 
+                                       c_char_p(value.encode('ascii')))
 
     if result == SSH_AGAIN:
         raise SshNonblockingTryAgainException()
@@ -239,7 +240,8 @@ def _ssh_channel_request_x11(ssh_channel_int, screen_number=0,
                              single_connection=False, protocol=None, 
                              cookie=None):
     result = c_ssh_channel_request_x11(ssh_channel_int, int(single_connection), 
-                                       c_char_p(protocol), c_char_p(cookie), 
+                                       c_char_p(bytify(protocol)), \
+                                       c_char_p(bytify(cookie)), 
                                        screen_number)
 
     if result == SSH_AGAIN:
@@ -373,7 +375,7 @@ class RemoteShellProcessor(object):
 
         received = StringIO()
         def data_cb(buffer_):
-            received.write(buffer_)
+            received.write(buffer_.decode('ascii'))
 
         self.__wait_on_output(data_cb)
         whole_data_cb(received.getvalue())
@@ -392,7 +394,7 @@ class RemoteShellProcessor(object):
         else:
             received_stream = StringIO()
             def data_cb(buffer_):
-                received_stream.write(buffer_)
+                received_stream.write(buffer_.decode('ascii'))
             
             self.__wait_on_output_all(data_cb)
             received = received_stream.getvalue()
@@ -418,7 +420,7 @@ class RemoteShellProcessor(object):
 
             welcome_stream = StringIO()
             def welcome_received_cb(data):
-                welcome_stream.write(data)
+                welcome_stream.write(data.decode('ascii'))
             
             self.__sc = sc
             self.__wait_on_output_all(welcome_received_cb)

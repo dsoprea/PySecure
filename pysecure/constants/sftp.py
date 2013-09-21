@@ -1,10 +1,10 @@
 # File modes.
-O_RDONLY = 0
-O_WRONLY = 01
-O_RDWR   = 02
-O_CREAT  = 0100
-O_EXCL   = 0200
-O_TRUNC  = 01000
+O_RDONLY = 0o0
+O_WRONLY = 0o1
+O_RDWR   = 0o2
+O_CREAT  = 0o100
+O_EXCL   = 0o200
+O_TRUNC  = 0o1000
 
 # Access modes 
 FA_WRITE = 'w'

@@ -1,8 +1,7 @@
 from unittest import TestCase
 
 from pysecure.sftp_mirror import SftpMirror
-
-from test_base import connect_sftp_test, connect_ssh_test
+from pysecure.test.test_base import connect_sftp_test, connect_ssh_test
 
 class ExampleTest(TestCase):
     def __sftp_cb(self, ssh, sftp):

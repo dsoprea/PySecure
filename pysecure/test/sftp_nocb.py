@@ -5,7 +5,7 @@ from unittest import TestCase
 import pysecure.log_config
 
 from pysecure.easy import EasySsh, get_key_auth_cb
-from test.test_config import user, host, key_filepath
+from pysecure.test.test_config import user, host, key_filepath
 
 
 class SftpNoCb(TestCase):

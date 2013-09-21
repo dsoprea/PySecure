@@ -1,6 +1,6 @@
 from unittest import TestCase
 
-from test_base import connect_ssh_test
+from pysecure.test.test_base import connect_ssh_test
 
 class RemoteCommandTest(TestCase):
     def __ssh_cb(self, ssh):

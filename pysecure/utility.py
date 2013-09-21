@@ -133,3 +133,8 @@ def local_recurse(path, dir_cb, listing_cb, max_listing_size=0,
            len(collected) > 0:
             listing_cb(path, collected)
 
+def bytify(s):
+    # We're not imposing any checks or filtering on data. If bytes or string 
+    # aren't provided in the wrong place, failure will ensue.
+    return s#.encode('ASCII') if s is not None else None
+
