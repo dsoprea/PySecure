@@ -142,7 +142,7 @@ def _ssh_channel_open_session(ssh_channel_int):
     logging.debug("Request channel open-session.")
 
     result = c_ssh_channel_open_session(ssh_channel_int)
-    elif result != SSH_OK:
+    if result != SSH_OK:
         ssh_session_int = _ssh_channel_get_session(ssh_channel_int)
         error = ssh_get_error(ssh_session_int)
 

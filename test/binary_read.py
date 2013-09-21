@@ -6,6 +6,8 @@ from test_base import connect_sftp_test
 
 class BinaryReadTest(TestCase):
     def __sftp_cb(self, ssh, sftp):
+        print("Opening file.")
+    
         with SftpFile(sftp, 'test_libgksu2.so.0', 'r') as sf:
             buffer_ = sf.read()
 

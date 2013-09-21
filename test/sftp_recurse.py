@@ -4,8 +4,7 @@ from test_base import connect_sftp_test
 
 class SftpRecurseTest(TestCase):
     def __sftp_cb(self, ssh, sftp):
-        def dir_cb(path, entry):
-            full_path = ('%s/%s' % (path, entry.name))
+        def dir_cb(path, full_path, entry):
             print("DIR: %s" % (full_path))
 
         def listing_cb(path, list_):

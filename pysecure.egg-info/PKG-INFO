@@ -1,6 +1,6 @@
 Metadata-Version: 1.1
 Name: pysecure
-Version: 0.9.0
+Version: 0.9.1
 Summary: A complete Python SSH/SFTP library based on libssh.
 Home-page: https://github.com/dsoprea/PySecure
 Author: Dustin Oprea

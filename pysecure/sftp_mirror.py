@@ -14,6 +14,7 @@ from pysecure.exceptions import SftpAlreadyExistsError
 class SftpMirror(object):
     def __init__(self, sftp, allow_creates=True, allow_deletes=True, 
                  create_cb=None, delete_cb=None):
+        print("SFTP-MIRROR")
         self.__sftp_session = sftp
 
         self.__allow_creates = allow_creates
