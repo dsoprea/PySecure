@@ -5,7 +5,6 @@ from os import SEEK_SET, SEEK_CUR, SEEK_END, utime
 from ctypes import create_string_buffer, cast, c_void_p, c_int, c_char_p, \
                    c_size_t, byref
 from collections import deque
-from io import StringIO
 from time import mktime
 
 from pysecure.constants.ssh import SSH_NO_ERROR
@@ -29,7 +28,7 @@ from pysecure.calls.sftpi import c_sftp_get_error, c_sftp_new, c_sftp_init, \
                                  c_sftp_symlink, c_sftp_lstat, c_sftp_unlink
 
 from pysecure.exceptions import SftpError, SftpAlreadyExistsError
-from pysecure.utility import bytify
+from pysecure.utility import bytify, ByteStream, stringify
 
 def sftp_get_error(sftp_session_int):
     return c_sftp_get_error(sftp_session_int)
@@ -68,7 +67,7 @@ def _sftp_init(sftp_session_int):
 def _sftp_opendir(sftp_session_int, path):
     logging.debug("Opening directory: %s" % (path))
 
-    sd = c_sftp_opendir(sftp_session_int, path.encode('ascii'))
+    sd = c_sftp_opendir(sftp_session_int, bytify(path))
     if sd is None:
         type_ = sftp_get_error(sftp_session_int)
         if type_ >= 0:
@@ -106,7 +105,7 @@ def _sftp_open(sftp_session_int, filepath, access_type, mode):
     logging.debug("Opening file: %s" % (filepath))
 
     sf = c_sftp_open(sftp_session_int, 
-                     filepath.encode('ascii'), 
+                     bytify(filepath), 
                      access_type, 
                      mode)
 
@@ -180,8 +179,8 @@ def _sftp_stat(sftp_session_int, file_path):
 
 def _sftp_rename(sftp_session_int, filepath_old, filepath_new):
     result = c_sftp_rename(sftp_session_int, 
-                           c_char_p(filepath_old.encode('ascii')), 
-                           c_char_p(filepath_new.encode('ascii')))
+                           c_char_p(bytify(filepath_old)), 
+                           c_char_p(bytify(filepath_new)))
 
     if result < 0:
         type_ = sftp_get_error(sftp_session_int)
@@ -197,7 +196,7 @@ def _sftp_rename(sftp_session_int, filepath_old, filepath_new):
 
 def _sftp_chmod(sftp_session_int, file_path, mode):
     result = c_sftp_chmod(sftp_session_int, 
-                          c_char_p(file_path.encode('ascii')), 
+                          c_char_p(bytify(file_path)), 
                           c_int(mode))
 
     if result < 0:
@@ -211,7 +210,7 @@ def _sftp_chmod(sftp_session_int, file_path, mode):
 
 def _sftp_chown(sftp_session_int, file_path, uid, gid):
     result = c_sftp_chown(sftp_session_int, 
-                          c_char_p(file_path.encode('ascii')), 
+                          c_char_p(bytify(file_path)), 
                           c_int(uid), 
                           c_int(gid))
 
@@ -231,7 +230,7 @@ def _sftp_mkdir(sftp_session_int, path, mode, check_exists_on_fail=True):
     logging.debug("Creating directory: %s" % (path))
 
     result = c_sftp_mkdir(sftp_session_int, 
-                          c_char_p(path.encode('ascii')), 
+                          c_char_p(bytify(path)), 
                           c_int(mode))
 
     if result < 0:
@@ -254,7 +253,7 @@ def _sftp_mkdir(sftp_session_int, path, mode, check_exists_on_fail=True):
 def _sftp_rmdir(sftp_session_int, path):
     logging.debug("Deleting directory: %s" % (path))
 
-    result = c_sftp_rmdir(sftp_session_int, c_char_p(path.encode('ascii')))
+    result = c_sftp_rmdir(sftp_session_int, c_char_p(bytify(path)))
 
     if result < 0:
         type_ = sftp_get_error(sftp_session_int)
@@ -266,7 +265,7 @@ def _sftp_rmdir(sftp_session_int, path):
                             "error." % (path))
 
 def _sftp_lstat(sftp_session_int, file_path):
-    attr = c_sftp_lstat(sftp_session_int, c_char_p(file_path.encode('ascii')))
+    attr = c_sftp_lstat(sftp_session_int, c_char_p(bytify(file_path)))
 
     if attr is None:
         type_ = sftp_get_error(sftp_session_int)
@@ -283,7 +282,7 @@ def _sftp_unlink(sftp_session_int, file_path):
     logging.debug("Deleting file: %s" % (file_path))
 
     result = c_sftp_unlink(sftp_session_int, 
-                           c_char_p(file_path.encode('ascii')))
+                           c_char_p(bytify(file_path)))
 # TODO: This seems to be a large integer. What is it?
     if result < 0:
         type_ = sftp_get_error(sftp_session_int)
@@ -295,7 +294,7 @@ def _sftp_unlink(sftp_session_int, file_path):
                             "error." % (file_path))
 
 def _sftp_readlink(sftp_session_int, file_path):
-    target = c_sftp_readlink(sftp_session_int, c_char_p(file_path.encode('ascii')))
+    target = c_sftp_readlink(sftp_session_int, c_char_p(bytify(file_path)))
 
     if target is None:
         type_ = sftp_get_error(sftp_session_int)
@@ -310,8 +309,8 @@ def _sftp_readlink(sftp_session_int, file_path):
 
 def _sftp_symlink(sftp_session_int, to, from_):
     result = c_sftp_symlink(sftp_session_int, 
-                            c_char_p(to.encode('ascii')), 
-                            c_char_p(from_.encode('ascii')))
+                            c_char_p(bytify(to)), 
+                            c_char_p(bytify(from_)))
 
     if result < 0:
         type_ = sftp_get_error(sftp_session_int)
@@ -324,7 +323,7 @@ def _sftp_symlink(sftp_session_int, to, from_):
 
 def _sftp_setstat(sftp_session_int, file_path, entry_attributes):
     result = c_sftp_setstat(sftp_session_int,
-                            c_char_p(file_path.encode('ascii')),
+                            c_char_p(bytify(file_path)),
                             entry_attributes.raw)
 
     if result < 0:
@@ -342,7 +341,7 @@ def _sftp_listdir(sftp_session_int,
                   get_files=True):
     logging.debug("Listing directory: %s" % (path))
 
-    with SftpDirectory(sftp_session_int, path.encode('ascii')) as sd_:
+    with SftpDirectory(sftp_session_int, bytify(path)) as sd_:
         while 1:
             attributes = _sftp_readdir(sftp_session_int, sd_)
             if attributes is None:
@@ -369,7 +368,7 @@ def _sftp_utimes(sftp_session_int, file_path, atime_epoch, mtime_epoch):
     times = (CTimeval * 2)(atime, mtime)
 
     result = c_sftp_utimes(sftp_session_int, 
-                           c_char_p(file_path.encode('ascii')), 
+                           c_char_p(bytify(file_path)), 
                            byref(times))
 
     if result < 0:
@@ -377,7 +376,7 @@ def _sftp_utimes(sftp_session_int, file_path, atime_epoch, mtime_epoch):
 
 def _sftp_utimes_dt(sftp_session_int, file_path, atime_dt, mtime_dt):
     _sftp_utimes(sftp_session_int, 
-                 file_path.encode('ascii'), 
+                 bytify(file_path), 
                  mktime(atime_dt.timetuple()), 
                  mktime(mtime_dt.timetuple()))
 
@@ -507,7 +506,7 @@ class SftpSession(object):
 
         remove_directory(path)
 
-    def recurse(self, path, dir_cb, listing_cb, max_listing_size=0, 
+    def recurse(self, root_path, dir_cb, listing_cb, max_listing_size=0, 
                 max_depth=MAX_REMOTE_RECURSION_DEPTH):
         """Recursively iterate a directory. Invoke callbacks for directories 
         and entries (both are optional, but it doesn't make sense unless one is 
@@ -517,7 +516,7 @@ class SftpSession(object):
         directory in chunks.
         """
                 
-        q = deque([(path, 0)])
+        q = deque([(root_path, 0)])
         collected = []
 
         def push_file(path, file_path, entry):
@@ -536,12 +535,13 @@ class SftpSession(object):
 
             entries = self.listdir(path)
             for entry in entries:
-                file_path = ('%s/%s' % (path, entry.name))
+                filename = stringify(entry.name)
+                file_path = ('%s/%s' % (path, filename))
 
                 if entry.is_symlink:
                     push_file(path, file_path, entry)
                 elif entry.is_directory:
-                    if entry.name == '.' or entry.name == '..':
+                    if filename == '.' or filename == '..':
                         continue
 
                     if dir_cb is not None:
@@ -566,7 +566,7 @@ class SftpSession(object):
                                                       filepath_to))
 
         with SftpFile(self, filepath_from, 'r') as sf_from:
-            with open(filepath_to, 'w') as file_to:
+            with open(filepath_to, 'wb') as file_to:
                 while 1:
                     part = sf_from.read(MAX_MIRROR_WRITE_CHUNK_SIZE)
                     file_to.write(part)
@@ -586,7 +586,7 @@ class SftpSession(object):
         self.__log.debug("Writing L[%s] -> R[%s]." % (filepath_from, 
                                                       filepath_to))
 
-        with open(filepath_from, 'r') as file_from:
+        with open(filepath_from, 'rb') as file_from:
             with SftpFile(self, filepath_to, 'w') as sf_to:
                 while 1:
                     part = file_from.read(MAX_MIRROR_WRITE_CHUNK_SIZE)
@@ -781,10 +781,10 @@ class EntryAttributes(object):
 
 class StreamBuffer(object):
     def __init__(self):
-        self.__stream = StringIO()
+        self.__stream = ByteStream()
 
     def read_until_nl(self, read_cb):
-        captured = StringIO()
+        captured = ByteStream()
 
         i = 0
         found = False
@@ -800,9 +800,10 @@ class StreamBuffer(object):
                               (len(couplet)))
 
                 more_data = read_cb()
+                assert issubclass(more_data.__class__, bytes)
                 logging.debug("Retrieved (%d) more bytes." % (len(more_data)))
                 
-                if more_data != '':
+                if more_data != b'':
                     self.__stream.write(more_data)
                     self.__stream.seek(position)
 
@@ -810,47 +811,46 @@ class StreamBuffer(object):
                     couplet = self.__stream.read(2)
                     logging.debug("Couplet is now (%d) bytes." % 
                                   (len(couplet)))
-                elif couplet == '':
+                elif couplet == b'':
                     done = True
                     continue
 
             if len(couplet) == 2:
                 # We represent a \r\n newline.
-                if couplet == '\r\n':
+                if couplet == b'\r\n':
                     nl = couplet
                     found = True
 
                     captured.write(couplet)
                 
                 # We represent a one-byte newline that's in the first position.
-                elif couplet[0] == '\r' or couplet[0] == '\n':
+                elif couplet[0:1] == b'\r' or couplet[0:1] == b'\n':
                     nl = couplet[0]
                     found = True
 
-                    captured.write(couplet[0])
+                    captured.write(couplet[0:1])
                     self.__stream.seek(-1, SEEK_CUR)
                     
                 # The first position is an ordinary character. If there's a
                 # newline in the second position, we'll pick it up on the next
                 # round.
                 else:
-                    captured.write(couplet[0])
+                    captured.write(couplet[0:1])
                     self.__stream.seek(-1, SEEK_CUR)
             elif len(couplet) == 1:
                 # This is the last [odd] byte of the file.
 
-                if couplet[0] == '\r' or couplet[0] == '\n':
+                if couplet[0:1] == b'\r' or couplet[0:1] == b'\n':
                     nl = couplet[0]
                     found = True
 
-                captured.write(couplet[0])
+                captured.write(couplet[0:1])
                 
                 done = True
 
             i += 1
 
-        data = captured.getvalue()
-        return (data, nl)
+        return (stringify(captured.get_bytes()), nl)
 
 
 class SftpFileObject(object):
@@ -936,7 +936,7 @@ class SftpFileObject(object):
     def __iter__(self):
         return self
 
-    def next(self):
+    def __next__(self):
         """Iterate through lines of text."""
 
         next_line = self.readline()
@@ -945,6 +945,9 @@ class SftpFileObject(object):
             raise StopIteration()
 
         return next_line
+
+    # For Python 2.x compatibility.
+    next = __next__
 
     def readline(self, size=None):
         """Read a single line of text with EOF."""
@@ -961,11 +964,11 @@ class SftpFileObject(object):
         """Read more data from the file."""
 
         if self.__eof is True:
-            return ''
+            return b''
 
         logging.debug("Reading another block.")        
         block = self.read(self.__block_size)
-        if block == '':
+        if block == b'':
             self.__log.debug("We've encountered the EOF.")
             self.__eof = True
 

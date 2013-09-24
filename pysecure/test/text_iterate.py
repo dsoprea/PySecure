@@ -10,7 +10,7 @@ class TextIterateTest(TestCase):
         with SftpFile(sftp, 'test_doc_rfc1958.txt') as sf:
             i = 0
             for data in sf:
-                stdout.write("> " + data)
+#                stdout.write("> " + data)
 
                 if i >= 30:
                     break

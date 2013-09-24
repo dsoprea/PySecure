@@ -8,9 +8,9 @@ from pysecure.easy import EasySsh, get_key_auth_cb
 from pysecure.test.test_config import user, host, key_filepath
 
 
-class SftpNoCb(TestCase):
+class SftpNoCbTest(TestCase):
     def __init__(self, *args, **kwargs):
-        super(SftpNoCb, self).__init__(*args, **kwargs)
+        super(SftpNoCbTest, self).__init__(*args, **kwargs)
 
         self.__log = logging.getLogger('SftpNoCb')
 

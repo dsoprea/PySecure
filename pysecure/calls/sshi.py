@@ -125,6 +125,7 @@ c_ssh_is_blocking = libssh.ssh_is_blocking
 c_ssh_is_blocking.argtypes = [c_ssh_session]
 c_ssh_is_blocking.restype = c_int
 
+# Added support in 0.6.0
 # int ssh_pki_import_privkey_file(const char *filename, const char *passphrase, ssh_auth_callback auth_fn, void *auth_data, ssh_key *pkey)
 c_ssh_pki_import_privkey_file = libssh.ssh_pki_import_privkey_file
 c_ssh_pki_import_privkey_file.argtypes = [c_char_p, c_char_p, c_void_p, c_void_p, POINTER(c_ssh_key)]
@@ -155,6 +156,7 @@ c_ssh_get_version = libssh.ssh_get_version
 c_ssh_get_version.argtypes = [c_ssh_session]
 c_ssh_get_version.restype = c_int
 
+# Added support in 0.6.0
 # const char* ssh_get_serverbanner(ssh_session session)
 c_ssh_get_serverbanner = libssh.ssh_get_serverbanner
 c_ssh_get_serverbanner.argtypes = [c_ssh_session]

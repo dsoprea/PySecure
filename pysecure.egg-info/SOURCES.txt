@@ -27,5 +27,3 @@ pysecure/calls/sshi.py
 pysecure/constants/__init__.py
 pysecure/constants/sftp.py
 pysecure/constants/ssh.py
-test/test_base.py
-test/test_config.py

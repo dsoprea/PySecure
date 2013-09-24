@@ -32,11 +32,19 @@ def connect_sftp_with_cb(sftp_cb, *args, **kwargs):
     connect_ssh_with_cb(ssh_cb, *args, **kwargs)
 
 def get_key_auth_cb(key_filepath):
-    """This is just a convenience function."""
+    """This is just a convenience function for key-based login."""
 
     def auth_cb(ssh):
         key = ssh_pki_import_privkey_file(key_filepath)
         ssh.userauth_publickey(key)
+
+    return auth_cb
+
+def get_password_auth_cb(password):
+    """This is just a convenience function for password-based login."""
+
+    def auth_cb(ssh):
+        ssh.userauth_password(password)
 
     return auth_cb
 
@@ -45,12 +53,13 @@ class EasySsh(object):
     points (as opposed to the callback methods, above).
     """
 
-    def __init__(self, user, host, auth_cb, allow_new=True, verbosity=0):
+    def __init__(self, user, host, auth_cb, allow_new=True, **session_args):
         self.__user = user
         self.__host = host
         self.__auth_cb = auth_cb
         self.__allow_new = allow_new
-        self.__verbosity = verbosity
+        self.__session_args = session_args
+        
         self.__log = logging.getLogger('EasySsh')
 
         self.__ssh_session = None
@@ -73,7 +82,8 @@ class EasySsh(object):
         self.__system = SshSystem()
         self.__system.open()
         
-        self.__ssh_session = SshSession(user=self.__user, host=self.__host)
+        self.__ssh_session = SshSession(user=self.__user, host=self.__host, 
+                                        **self.__session_args)
         self.__ssh_session.open()
 
         self.__connect = SshConnect(self.__ssh_session)

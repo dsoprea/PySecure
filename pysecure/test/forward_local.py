@@ -9,7 +9,7 @@ class ForwardLocalTest(TestCase):
         port_remote = 80
         host_source = 'localhost'
         port_local = 1111
-        data = "GET / HTTP/1.1\nHost: localhost\n\n"
+        data = b"GET / HTTP/1.1\nHost: localhost\n\n"
 
         with SshChannel(ssh) as sc:
             sc.open_forward(host_remote, 
@@ -21,7 +21,7 @@ class ForwardLocalTest(TestCase):
 
             received = sc.read(1024)
 
-            print("Received:\n\n%s" % (received))
+#            print("Received:\n\n%s" % (received))
 
     def test_forward_local(self):
         connect_ssh_test(self.__ssh_cb)

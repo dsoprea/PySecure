@@ -7,14 +7,13 @@ from shutil import rmtree
 from time import mktime
 
 from pysecure.config import MAX_MIRROR_LISTING_CHUNK_SIZE
-from pysecure.utility import local_recurse
+from pysecure.utility import local_recurse, stringify
 from pysecure.exceptions import SftpAlreadyExistsError
 
 
 class SftpMirror(object):
     def __init__(self, sftp, allow_creates=True, allow_deletes=True, 
                  create_cb=None, delete_cb=None):
-        print("SFTP-MIRROR")
         self.__sftp_session = sftp
 
         self.__allow_creates = allow_creates
@@ -76,23 +75,26 @@ class SftpMirror(object):
     def __get_remote_files(self, path):
         self.__log.debug("Checking remote files.")
 
+# TODO: Decode all read paths/files from ASCII: (str).decode('ascii')
+
         remote_dirs = set()
         def remote_dir_cb(parent_path, full_path, entry):
-            remote_dirs.add(entry.name)
+            remote_dirs.add(stringify(entry.name))
 
         remote_entities = set()
         remote_files = set()
         remote_attributes = {}
         def remote_listing_cb(parent_path, listing):
             for (file_path, entry) in listing:
-                entity = (entry.name, entry.modified_time, entry.size, 
-                          entry.is_symlink)
+                entity = (stringify(entry.name), entry.modified_time, 
+                          entry.size, entry.is_symlink)
 
                 remote_entities.add(entity)
-                remote_files.add(entry.name)
+                remote_files.add(stringify(entry.name))
 
                 flags = (entry.is_regular, entry.is_symlink, entry.is_special)
-                remote_attributes[entry.name] = (entry.modified_time_dt, flags)
+                remote_attributes[stringify(entry.name)] = \
+                    (entry.modified_time_dt, flags)
 
         self.__sftp_session.recurse(path,
                                     remote_dir_cb, 

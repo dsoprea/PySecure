@@ -5,10 +5,12 @@ from pysecure.test.test_base import connect_sftp_test
 class SftpRecurseTest(TestCase):
     def __sftp_cb(self, ssh, sftp):
         def dir_cb(path, full_path, entry):
-            print("DIR: %s" % (full_path))
+#            print("DIR: %s" % (full_path))
+            pass
 
         def listing_cb(path, list_):
-            print("[%s]: (%d) files" % (path, len(list_)))
+#            print("[%s]: (%d) files" % (path, len(list_)))
+            pass
 
         sftp.recurse('Pictures', dir_cb, listing_cb)
 

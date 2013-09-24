@@ -3,6 +3,7 @@ from collections import deque
 from os import listdir, stat, lstat
 from os.path import basename, isfile, isdir, islink
 from stat import S_ISCHR, S_ISBLK, S_ISREG, S_ISLNK
+from os import SEEK_SET, SEEK_CUR, SEEK_END
 
 from pysecure.exceptions import SshNonblockingTryAgainException
 
@@ -134,7 +135,57 @@ def local_recurse(path, dir_cb, listing_cb, max_listing_size=0,
             listing_cb(path, collected)
 
 def bytify(s):
-    # We're not imposing any checks or filtering on data. If bytes or string 
-    # aren't provided in the wrong place, failure will ensue.
-    return s#.encode('ASCII') if s is not None else None
+    if issubclass(s.__class__, str):
+        return s.encode('ascii')
+    else:
+        return s
+
+def stringify(s):
+    if issubclass(s.__class__, (bytes, bytearray)):
+        return s.decode('ascii')
+    else:
+        return s
+
+
+class ByteStream(object):
+    def __init__(self):
+        self.__array = bytearray()
+        self.__position = 0
+
+    def write(self, buf_):
+        assert issubclass(buf_.__class__, bytes)
+
+        self.__array.extend(buf_)
+        self.__position = len(self.__array)
+
+    def read(self, count):
+        slice_ = self.__array[self.__position:self.__position + count]
+        self.__position += count
+
+        return bytes(slice_)
+
+    def seek(self, position, whence=SEEK_SET):
+        if whence == SEEK_CUR:
+            position_final = self.__position + position
+        elif whence == SEEK_END:
+            position_final = self.__position - position
+        else:
+            position_final = position
+
+        if position >= len(self.__array):
+            raise Exception("[Final] position (%d) exceeds buffer length (%d) "
+                            "for seek-type (%d). Argument was (%d)." % 
+                            (position_final, len(self.__array), whence, 
+                             position))
+
+        self.__position = position_final
+
+    def tell(self):
+        return self.__position
+
+    def get_array(self):
+        return self.__array
+
+    def get_bytes(self):
+        return bytes(self.__array)
 

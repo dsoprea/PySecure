@@ -5,7 +5,7 @@ from pysecure.test.test_base import connect_sftp_test
 
 class TextWriteTest(TestCase):
     def __sftp_cb(self, ssh, sftp):
-        test_data = '1234'
+        test_data = b'1234'
         with SftpFile(sftp, 'sftp_write.txt', 'w') as sf:
             sf.write(test_data)
 

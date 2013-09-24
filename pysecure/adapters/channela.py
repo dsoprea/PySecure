@@ -2,7 +2,6 @@ import logging
 
 from ctypes import c_char_p, c_void_p, cast, c_uint32, c_int, \
                    create_string_buffer
-from io import StringIO
 from time import time
 
 from pysecure.config import NONBLOCK_READ_TIMEOUT_MS, \
@@ -10,7 +9,7 @@ from pysecure.config import NONBLOCK_READ_TIMEOUT_MS, \
 from pysecure.constants.ssh import SSH_OK, SSH_ERROR, SSH_AGAIN
 from pysecure.exceptions import SshError, SshNonblockingTryAgainException, \
                                 SshNoDataReceivedException, SshTimeoutException
-from pysecure.utility import sync, bytify
+from pysecure.utility import sync, bytify, stringify
 from pysecure.calls.channeli import c_ssh_channel_new, \
                                     c_ssh_channel_open_forward, \
                                     c_ssh_channel_write, c_ssh_channel_free, \
@@ -49,9 +48,9 @@ def _ssh_channel_open_forward(ssh_channel_int, host_remote, port_remote,
     logging.debug("Requesting forward on channel.")
 
     result = c_ssh_channel_open_forward(ssh_channel_int, 
-                                        c_char_p(host_remote.encode('ascii')), 
+                                        c_char_p(bytify(host_remote)), 
                                         c_int(port_remote), 
-                                        c_char_p(host_source.encode('ascii')), 
+                                        c_char_p(bytify(host_source)), 
                                         c_int(port_local))
 
     if result == SSH_AGAIN:
@@ -154,7 +153,7 @@ def _ssh_channel_request_exec(ssh_channel_int, cmd):
     logging.debug("Requesting channel exec.")
 
     result = c_ssh_channel_request_exec(ssh_channel_int, 
-                                        c_char_p(cmd.encode('ascii')))
+                                        c_char_p(bytify(cmd)))
     if result == SSH_AGAIN:
         raise SshNonblockingTryAgainException()
     elif result != SSH_OK:
@@ -213,8 +212,8 @@ def _ssh_channel_request_env(ssh_channel_int, name, value):
 
 # TODO: We haven't been able to get this to work. Reported bug #125.
     result = c_ssh_channel_request_env(ssh_channel_int, 
-                                       c_char_p(name.encode('ascii')), 
-                                       c_char_p(value.encode('ascii')))
+                                       c_char_p(bytify(name)), 
+                                       c_char_p(bytify(value)))
 
     if result == SSH_AGAIN:
         raise SshNonblockingTryAgainException()
@@ -360,7 +359,7 @@ class RemoteShellProcessor(object):
         start_at = time()
         while self.__sc.is_open() and self.__sc.is_eof() is False:
             buffer_ = self.__sc.read_nonblocking(self.__block_size)
-            if buffer_ == '':
+            if buffer_ == b'':
                 delta = time() - start_at
                 if delta * 1000 > NONBLOCK_READ_TIMEOUT_MS:
                     break
@@ -373,61 +372,62 @@ class RemoteShellProcessor(object):
     def __wait_on_output_all(self, whole_data_cb):
         self.__log.debug("Reading complete output.")
 
-        received = StringIO()
+        received = bytearray()
         def data_cb(buffer_):
-            received.write(buffer_.decode('ascii'))
+            received.extend(buffer_)
 
         self.__wait_on_output(data_cb)
-        whole_data_cb(received.getvalue())
+        whole_data_cb(bytes(received))
 
     def do_command(self, command, block_cb=None, add_nl=True, 
                    drop_last_line=True, drop_first_line=True):
-        self.__log.debug("Sending command: %s" % (command.rstrip()))
+        self.__log.debug("Sending shell command: %s" % (command.rstrip()))
 
         if add_nl is True:
             command += '\n'
 
-        self.__sc.write(command)
+        self.__sc.write(bytify(command))
         
         if block_cb is not None:
             self.__wait_on_output(block_cb)
         else:
-            received_stream = StringIO()
+            received = bytearray()
             def data_cb(buffer_):
-                received_stream.write(buffer_.decode('ascii'))
+                received.extend(bytify(buffer_))
             
             self.__wait_on_output_all(data_cb)
-            received = received_stream.getvalue()
 
             if drop_first_line is True:
-                received = received[received.index('\n') + 1:]
+                received = received[received.index(b'\n') + 1:]
 
             # In all likelihood, the last line is probably the prompt.
             if drop_last_line is True:
-                received = received[:received.rindex('\n')]
+                received = received[:received.rindex(b'\n')]
 
-            return received
+            return bytes(received)
 
     def shell(self, ready_cb, cols=80, rows=24):
         self.__log.debug("Starting RSP shell.")
 
         with SshChannel(self.__ssh_session) as sc:
             sc.open_session()
+            sc.request_env('aa', 'bb')
+#        sc.request_env('LANG', 'en_US.UTF-8')
 
             sc.request_pty()
             sc.change_pty_size(cols, rows)
             sc.request_shell()
 
-            welcome_stream = StringIO()
+            self.__log.debug("Waiting for shell welcome message.")
+
+            welcome = bytearray()
             def welcome_received_cb(data):
-                welcome_stream.write(data.decode('ascii'))
+                welcome.extend(bytify(data))
             
             self.__sc = sc
             self.__wait_on_output_all(welcome_received_cb)
-            welcome = welcome_stream.getvalue()
 
             self.__log.debug("RSP shell is ready.")
-
-            ready_cb(sc, welcome)
+            ready_cb(sc, stringify(welcome))
             self.__sc = None
 
