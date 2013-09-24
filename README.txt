@@ -10,7 +10,7 @@ This solution exists as an alternative to Paramiko. I love Paramiko, but as
 functionality, such as support for elliptic-curve encryption (recently added). 
 It is also written in C.
 
-This project is in active development.
+This project is in active development. It -is- Python3 compatible.
 
 
 (1) http://daniel.haxx.se/blog/2010/12/05/re-evaluating-the-criticism/
@@ -24,6 +24,9 @@ X Local port forwarding.
 X Reverse port forwarding.
 X Remote command (single commands).
 X Remote execution (shell session).
+  * This is currently broken in libssh 0.6.0, but our library is no longer 
+    compatible with 0.5.5 (key-related changes involved new/changed functions 
+    in libssh).
   Threading support.
   Support X11 forwarding (waiting on libssh).
 X Added SFTP "mirror" functionality.
