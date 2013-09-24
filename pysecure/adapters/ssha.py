@@ -228,15 +228,16 @@ def _ssh_finalize():
         raise SshError("Could not finalize SSH.")
 
 def _ssh_forward_listen(ssh_session, address, port):
-#    if address is not None:
-#        assert issubclass(address.__class__, str)
-#        address = bytify(address)
+    if address is not None:
+        assert issubclass(address.__class__, str)
+        address = bytify(address)
 
-#    bound_port = c_int()
+    bound_port = c_int()
+# BUG: Currently always returns SSH_AGAIN in 0.6.0 . Registered as bug #126.
     result = c_ssh_forward_listen(ssh_session, 
-                                  None, 
-                                  8080, 
-                                  None)
+                                  address, 
+                                  port, 
+                                  byref(bound_port))
 
     if result == SSH_AGAIN:
         raise SshNonblockingTryAgainException()
