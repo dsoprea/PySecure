@@ -1,12 +1,35 @@
+#!/usr/bin/env python2.7
+
 from setuptools import setup, find_packages
+from setuptools.command.install import install
+
+from ctypes import cdll
 
 version = '0.11.0'
+
+def pre_install():
+    print("Verifying that libssh.so is accessible.")
+
+    try:
+        cdll.LoadLibrary('libssh.so')
+    except OSError:
+        print("libssh.so can not be loaded.")
+        raise
+
+def post_install():
+    pass
+
+class custom_install(install):
+    def run(self):
+        pre_install()
+        install.run(self)
+        post_install()
 
 setup(name='pysecure',
       version=version,
       description="A complete Python SSH/SFTP library based on libssh.",
       long_description="""\
-A complete Python SSH/SFTP library based on libssh.""",
+A complete Python SSH/SFTP library based on libssh. This libraries offers [nearly] complete functionality, including elliptic cryptography support.""",
       classifiers=['Development Status :: 3 - Alpha', 
                    'Intended Audience :: Developers',
                    'License :: OSI Approved :: GNU General Public License v2 (GPLv2)',
@@ -30,6 +53,8 @@ A complete Python SSH/SFTP library based on libssh.""",
       entry_points="""
       # -*- Entry points: -*-
       """,
-      scripts=[]
+      scripts=[],
+      cmdclass={'install': custom_install
+               },
       ),
 
