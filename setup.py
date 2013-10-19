@@ -5,7 +5,7 @@ from setuptools.command.install import install
 
 from ctypes import cdll
 
-version = '0.11.0'
+version = '0.11.1'
 
 def pre_install():
     print("Verifying that libssh.so is accessible.")
