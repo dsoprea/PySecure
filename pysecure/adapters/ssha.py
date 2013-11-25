@@ -373,7 +373,7 @@ def ssh_threads_set_callbacks(cb):
         raise SshError("Could not set callbacks.")
 
 def ssh_set_blocking(ssh_session, blocking):
-    c_ssh_set_blocking(c_void_p(ssh_session), c_long(blocking))
+    c_ssh_set_blocking(c_void_p(ssh_session), c_int(blocking))
 
 
 class SshSystem(object):
