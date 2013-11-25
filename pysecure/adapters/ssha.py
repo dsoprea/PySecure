@@ -1,7 +1,7 @@
 import logging
 
 from ctypes import c_char_p, c_void_p, c_ubyte, byref, POINTER, cast, c_uint, \
-                   c_int
+                   c_int, c_long
 
 from pysecure.exceptions import SshError, SshLoginError, SshHostKeyException, \
                                 SshNonblockingTryAgainException, \
