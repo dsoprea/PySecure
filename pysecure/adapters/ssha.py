@@ -372,7 +372,7 @@ def ssh_threads_set_callbacks(cb):
     if result != SSH_OK:
         raise SshError("Could not set callbacks.")
 
-def ssh_set_blocking(ssh_session, blocking):
+def _ssh_set_blocking(ssh_session, blocking):
     c_ssh_set_blocking(c_void_p(ssh_session), c_int(blocking))
 
 
@@ -403,7 +403,7 @@ class SshSession(object):
 
 
         if 'blocking' in options:
-            ssh_set_blocking(self.__ssh_session_ptr, options['blocking'])
+            self.set_blocking(options['blocking'])
             # SSH_OPTIONS doesn't contain blocking and will crash if it finds it
             del self.__options['blocking']
 
@@ -498,6 +498,9 @@ class SshSession(object):
 
     def is_blocking(self):
         return _ssh_is_blocking(self.__ssh_session_ptr)
+
+    def set_blocking(self, blocking=True):
+        _ssh_set_blocking(self.__ssh_session_ptr, blocking)
 
     def get_error_code(self):
         return ssh_get_error_code(self.__ssh_session_ptr)
