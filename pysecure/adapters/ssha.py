@@ -1,7 +1,7 @@
 import logging
 
 from ctypes import c_char_p, c_void_p, c_ubyte, byref, POINTER, cast, c_uint, \
-                   c_int, c_long
+                   c_int, c_long, pointer
 
 from pysecure.exceptions import SshError, SshLoginError, SshHostKeyException, \
                                 SshNonblockingTryAgainException, \
@@ -80,7 +80,7 @@ def _ssh_options_set_int(ssh_session, type_, value):
     value_int = c_int(value)
     result = c_ssh_options_set(c_void_p(ssh_session), 
                                c_int(type_), 
-                               cast(POINTER(value_int), c_void_p))
+                               cast(byref(value_int), c_void_p))
 
     if result < 0:
         error = ssh_get_error(ssh_session)
@@ -91,7 +91,7 @@ def _ssh_options_set_long(ssh_session, type_, value):
     value_long = c_long(value)
     result = c_ssh_options_set(c_void_p(ssh_session), 
                                c_int(type_), 
-                               cast(POINTER(value_long), c_void_p))
+                               cast(byref(value_long), c_void_p))
 
     if result < 0:
         error = ssh_get_error(ssh_session)
