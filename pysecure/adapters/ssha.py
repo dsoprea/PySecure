@@ -1,7 +1,7 @@
 import logging
 
-from ctypes import c_char_p, c_void_p, c_ubyte, byref, POINTER, cast, c_uint, \
-                   c_int, c_long, pointer
+from ctypes import c_char_p, c_void_p, c_ubyte, byref, cast, c_uint, \
+                   c_int, c_long
 
 from pysecure.exceptions import SshError, SshLoginError, SshHostKeyException, \
                                 SshNonblockingTryAgainException, \
@@ -40,11 +40,10 @@ from pysecure.calls.sshi import c_free, c_ssh_pki_import_privkey_file, \
                                 c_ssh_get_version, c_ssh_get_serverbanner, \
                                 c_ssh_disconnect, c_ssh_is_blocking, \
                                 c_ssh_threads_get_noop, \
-                                c_ssh_threads_set_callbacks
+                                c_ssh_threads_set_callbacks, \
+                                c_ssh_set_blocking 
 #                                c_ssh_threads_init, c_ssh_threads_finalize, \
 #                                c_ssh_threads_get_type
-
-#                                c_ssh_set_blocking, 
 
 
 from pysecure.adapters.channela import SshChannel
@@ -373,6 +372,9 @@ def ssh_threads_set_callbacks(cb):
     if result != SSH_OK:
         raise SshError("Could not set callbacks.")
 
+def ssh_set_blocking(ssh_session, blocking):
+    c_ssh_set_blocking(c_void_p(ssh_session), c_long(blocking))
+
 
 class SshSystem(object):
     def __enter__(self):
@@ -390,7 +392,7 @@ class SshSystem(object):
         _ssh_finalize
 
 class SshSession(object):
-    def __init__(self, **options):#blocking=True,
+    def __init__(self, **options):
         self.__options = options
 
         self.__ssh_session_ptr = _ssh_new()
@@ -399,7 +401,11 @@ class SshSession(object):
 
         self.__log.debug("Created session.")
 
-#        self.set_blocking(blocking)
+
+        if 'blocking' in options:
+            ssh_set_blocking(self.__ssh_session_ptr, options['blocking'])
+            # SSH_OPTIONS doesn't contain blocking and will crash if it finds it
+            del self.__options['blocking']
 
     def __enter__(self):
         return self.open()
