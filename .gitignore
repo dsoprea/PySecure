@@ -6,3 +6,4 @@ pysecure/development.py
 /lib/
 /local/
 /include/
+/pysecure.egg-info/
