@@ -1,3 +1,8 @@
 *.pyc
 dist/
 pysecure/development.py
+/.Python
+/bin/
+/lib/
+/local/
+/include/
