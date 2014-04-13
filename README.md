@@ -137,12 +137,10 @@ def listing_cb(path, list_):
 sftp.recurse('Pictures', dir_cb, listing_cb)
 ```
 
-Read a file:
+Read through text-file, one line at a time:
 
 ```python
 with SftpFile(sftp, 'text_file.txt') as sf:
-    # Read through text-file, one line at a time.
-
     i = 0
     for data in sf:
         stdout.write("> " + data)
@@ -151,10 +149,12 @@ with SftpFile(sftp, 'text_file.txt') as sf:
             break
 
         i += 1
+```
 
-# To read a complete file (binary friendly). It could also be
-# read one chunk at a time.
+To read a complete file (binary friendly). It could also be read one chunk at a 
+time:
 
+```python
 with SftpFile(sftp, 'binary_file.dat') as sf:
     buffer_ = sf.read()
 
@@ -177,10 +177,10 @@ mirror.mirror(mirror.mirror_to_local_no_recursion,
 mirror.mirror(mirror.mirror_to_remote_no_recursion, 
               "/home/dustin/Pictures", 
               "/tmp/RemotePictures")
+```
 
 Mirroring will ignore special (device) files. It also won't specially 
 handle hard-links.
-```
 
 Port-Forwarding Examples
 ------------------------
