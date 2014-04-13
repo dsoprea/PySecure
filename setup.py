@@ -6,13 +6,13 @@ from setuptools.command.install import install
 from ctypes import cdll
 from ctypes.util import find_library
 
-import versioneer
+#import versioneer
 
-versioneer.VCS = 'git'
-versioneer.versionfile_source = 'pysecure/_version.py'
-versioneer.versionfile_build = 'pysecure/_version.py'
-versioneer.tag_prefix = ''
-versioneer.parentdir_prefix = 'pysecure-'
+#versioneer.VCS = 'git'
+#versioneer.versionfile_source = 'pysecure/_version.py'
+#versioneer.versionfile_build = 'pysecure/_version.py'
+#versioneer.tag_prefix = ''
+#versioneer.parentdir_prefix = 'pysecure-'
 
 def pre_install():
     print("Verifying that libssh.so is accessible.")
@@ -32,7 +32,9 @@ class custom_install(install):
         pre_install()
         install.run(self)
 
-cmdclass = versioneer.get_cmdclass()
+#cmdclass = versioneer.get_cmdclass()
+cmdclass = {}
+
 cmdclass['install'] = custom_install
 
 long_description = "A complete Python SSH/SFTP library based on libssh. This "\
@@ -40,7 +42,7 @@ long_description = "A complete Python SSH/SFTP library based on libssh. This "\
                    "including elliptic cryptography support."
 
 setup(name='pysecure',
-      version=versioneer.get_version(),
+      version='0.11.5',#versioneer.get_version(),
       description="A complete Python SSH/SFTP library based on libssh.",
       long_description=long_description,
       classifiers=['Development Status :: 3 - Alpha', 
