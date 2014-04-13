@@ -75,7 +75,8 @@ A complete, working example using some included convenience functions would
 look like the following:
 
 ```python
-from pysecure.easy import connect_ssh, connect_sftp, get_key_auth_cb
+from pysecure.easy import connect_ssh_with_cb, connect_sftp_with_cb, \
+                          get_key_auth_cb
 
 user = 'dustin'
 host = 'localhost'
@@ -89,7 +90,7 @@ def ssh_cb(ssh):
     # Main logic, here.
     pass
 
-connect_ssh(ssh_cb, user, host, auth_cb)
+connect_ssh_with_cb(ssh_cb, user, host, auth_cb)
 
 # Or, for SFTP-enabled SSH functionality.
 
@@ -97,7 +98,7 @@ def sftp_cb(ssh, sftp):
     # Main logic, here.
     pass
 
-connect_sftp(sftp_cb, user, host, auth_cb)
+connect_sftp_with_cb(sftp_cb, user, host, auth_cb)
 ```
 
 
@@ -288,12 +289,12 @@ Remote Shell (efficient for many commands):
 EasySsh
 -------
 
-We always recommend the use of the connect_ssh and connect_sftp calls mentioned 
-above, as they are meant to be used with a "with" block, and will automatically 
-be cleaned-up properly. However, this strategy makes it impossible to keep a 
-connection open while passing control back to the caller of the function, and 
-therefoe requires that a new, subsequent connection is opened for the next 
-operation.
+We always recommend the use of the connect_ssh_with_cb and connect_sftp_with_cb 
+calls mentioned above, as they are meant to be used with a context-manager 
+("with") block, and will automatically be cleaned-up properly. However, this 
+strategy makes it impossible to keep a connection open while passing control 
+back to the caller of the function, and therefoe requires that a new, 
+subsequent connection is opened for the next operation.
 
 Whereas the above strategy relies on the use of a callback when the SSH or SFTP
 session(s) are ready, we also provide the EasySsh class to make it easy to open
