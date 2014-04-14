@@ -473,7 +473,7 @@ class SshSession(object):
     
         return _ssh_userauth_publickey(self.__ssh_session_ptr, privkey)
 
-    def execute(self, cmd, block_size=DEFAULT_EXECUTE_READ_BLOCK_SIZE):
+    def execute(self, cmd, block_size=DEFAULT_EXECUTE_READ_BLOCK_SIZE, iterate=True):
         """Execute a remote command. This functionality does not support more 
         than one command to be executed on the same channel, so we create a 
         dedicated channel as the session level than allowing direct access at
@@ -486,15 +486,24 @@ class SshSession(object):
             sc.open_session()
             sc.request_exec(cmd)
 
-            buffer_ = bytearray()
-            while 1:
-                bytes = sc.read(block_size)
-                buffer_.extend(bytes)
-                
-                if len(bytes) < block_size:
-                    break
+            if iterate is True:
+                buffer_ = bytearray()
+                while 1:
+                    bytes = sc.read(block_size)
+                    yield bytes
+                    
+                    if len(bytes) < block_size:
+                        break
+            else:
+                buffer_ = bytearray()
+                while 1:
+                    bytes = sc.read(block_size)
+                    buffer_.extend(bytes)
+                    
+                    if len(bytes) < block_size:
+                        break
 
-            return buffer_
+                return buffer_
 
     def is_blocking(self):
         return _ssh_is_blocking(self.__ssh_session_ptr)

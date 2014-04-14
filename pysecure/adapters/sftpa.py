@@ -226,6 +226,14 @@ def _sftp_chown(sftp_session_int, file_path, uid, gid):
                             "There was an unspecified error." % 
                             (file_path, mode))
 
+def _sftp_exists(sftp_session_int, path):
+    try:
+        _sftp_stat(sftp_session_int, path)
+    except SftpError:
+        return False
+    else:
+        return True
+
 def _sftp_mkdir(sftp_session_int, path, mode, check_exists_on_fail=True):
     logging.debug("Creating directory: %s" % (path))
 
@@ -235,12 +243,9 @@ def _sftp_mkdir(sftp_session_int, path, mode, check_exists_on_fail=True):
 
     if result < 0:
         if check_exists_on_fail is not False:
-            try:
-                _sftp_stat(sftp_session_int, path)
-            except SftpError:
-                pass
-            else:
-                raise SftpAlreadyExistsError("Path already exists: %s" % (path))
+            if _sftp_exists(sftp_session_int, path) is True
+                raise SftpAlreadyExistsError("Path already exists: %s" % 
+                                             (path))
 
         type_ = sftp_get_error(sftp_session_int)
         if type_ >= 0:
@@ -415,6 +420,9 @@ class SftpSession(object):
 
     def chown(self, file_path, uid, gid):
         return _sftp_chown(self.__sftp_session_int, file_path, uid, gid)
+
+    def exists(self, path):
+        return _sftp_exists(self.__sftp_session_int, path):
 
     def mkdir(self, path, mode=0o755):
         return _sftp_mkdir(self.__sftp_session_int, path, mode)

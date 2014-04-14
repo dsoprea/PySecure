@@ -1,8 +1,21 @@
 import logging
+import contextlib
 
 from pysecure.adapters.ssha import SshSession, SshConnect, SshSystem, \
                                    PublicKeyHash, ssh_pki_import_privkey_file
 from pysecure.adapters.sftpa import SftpSession, SftpFile
+
+@contextlib.contextmanager
+def connect_ssh(user, host, auth_cb, allow_new=True, *args, **kwargs):
+    with SshSystem():
+        with SshSession(user=user, host=host, *args, **kwargs) as ssh:
+            with SshConnect(ssh):
+                logging.debug("Ready to authenticate.")
+
+                ssh.is_server_known(allow_new=allow_new)
+
+                auth_cb(ssh)
+                yield ssh
 
 def connect_ssh_with_cb(ssh_cb, user, host, auth_cb, allow_new=True, 
                         verbosity=0):
@@ -10,26 +23,26 @@ def connect_ssh_with_cb(ssh_cb, user, host, auth_cb, allow_new=True,
     "ssh_cb" callback.
     """
 
-    with SshSystem():
-        with SshSession(user=user, host=host, verbosity=verbosity) as ssh:
-            with SshConnect(ssh):
-                logging.debug("Ready to authenticate.")
+    with connect_ssh(user, host, auth_cb, allow_new=True, verbosity=0) as ssh:
+        ssh_cb(ssh)
 
-                ssh.is_server_known(allow_new=allow_new)
+@contextlib.contextmanager
+def _connect_sftp(ssh, *args, **kwargs):
+    """A "managed" SFTP session. When the SSH session and an additional SFTP 
+    session are ready, invoke the sftp_cb callback.
+    """
 
-                auth_cb(ssh)
-                ssh_cb(ssh)
+    with SftpSession(ssh) as sftp:
+        yield (ssh, sftp)
 
+# TODO(dustin): Deprecate this call.
 def connect_sftp_with_cb(sftp_cb, *args, **kwargs):
     """A "managed" SFTP session. When the SSH session and an additional SFTP 
     session are ready, invoke the sftp_cb callback.
     """
 
-    def ssh_cb(ssh):
-        with SftpSession(ssh) as sftp:
-            sftp_cb(ssh, sftp)
-
-    connect_ssh_with_cb(ssh_cb, *args, **kwargs)
+    with _connect_sftp(*args, **kwargs) as (ssh, sftp):
+        sftp_cb(ssh, sftp)
 
 def get_key_auth_cb(key_filepath):
     """This is just a convenience function for key-based login."""
