@@ -243,7 +243,7 @@ def _sftp_mkdir(sftp_session_int, path, mode, check_exists_on_fail=True):
 
     if result < 0:
         if check_exists_on_fail is not False:
-            if _sftp_exists(sftp_session_int, path) is True
+            if _sftp_exists(sftp_session_int, path) is True:
                 raise SftpAlreadyExistsError("Path already exists: %s" % 
                                              (path))
 
@@ -422,7 +422,7 @@ class SftpSession(object):
         return _sftp_chown(self.__sftp_session_int, file_path, uid, gid)
 
     def exists(self, path):
-        return _sftp_exists(self.__sftp_session_int, path):
+        return _sftp_exists(self.__sftp_session_int, path)
 
     def mkdir(self, path, mode=0o755):
         return _sftp_mkdir(self.__sftp_session_int, path, mode)
