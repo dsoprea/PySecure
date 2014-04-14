@@ -42,7 +42,7 @@ long_description = "A complete Python SSH/SFTP library based on libssh. This "\
                    "including elliptic cryptography support."
 
 setup(name='pysecure',
-      version='0.11.6',#versioneer.get_version(),
+      version='0.11.7',#versioneer.get_version(),
       description="A complete Python SSH/SFTP library based on libssh.",
       long_description=long_description,
       classifiers=['Development Status :: 3 - Alpha', 
