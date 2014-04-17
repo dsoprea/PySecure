@@ -28,14 +28,14 @@ X Remote execution (shell session).
     compatible with 0.5.5 (key-related changes involved new/changed functions 
     in libssh).
   Threading support.
-  Support X11 forwarding (waiting on libssh).
+  Support X11 forwarding (waiting on libssh fixes).
 X Added SFTP "mirror" functionality.
 
 
 Dependencies
 ============
 
-> libssh 0.6.0rc1
+> libssh 0.6 branch as of 2013-10-19 or later.
 
 
 Installing
