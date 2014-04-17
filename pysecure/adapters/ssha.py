@@ -1,7 +1,7 @@
 import logging
 
-from ctypes import c_char_p, c_void_p, c_ubyte, byref, POINTER, cast, c_uint, \
-                   c_int
+from ctypes import c_char_p, c_void_p, c_ubyte, byref, cast, c_uint, \
+                   c_int, c_long
 
 from pysecure.exceptions import SshError, SshLoginError, SshHostKeyException, \
                                 SshNonblockingTryAgainException, \
@@ -40,11 +40,10 @@ from pysecure.calls.sshi import c_free, c_ssh_pki_import_privkey_file, \
                                 c_ssh_get_version, c_ssh_get_serverbanner, \
                                 c_ssh_disconnect, c_ssh_is_blocking, \
                                 c_ssh_threads_get_noop, \
-                                c_ssh_threads_set_callbacks
+                                c_ssh_threads_set_callbacks, \
+                                c_ssh_set_blocking 
 #                                c_ssh_threads_init, c_ssh_threads_finalize, \
 #                                c_ssh_threads_get_type
-
-#                                c_ssh_set_blocking, 
 
 
 from pysecure.adapters.channela import SshChannel
@@ -80,7 +79,7 @@ def _ssh_options_set_int(ssh_session, type_, value):
     value_int = c_int(value)
     result = c_ssh_options_set(c_void_p(ssh_session), 
                                c_int(type_), 
-                               cast(POINTER(value_int), c_void_p))
+                               cast(byref(value_int), c_void_p))
 
     if result < 0:
         error = ssh_get_error(ssh_session)
@@ -91,7 +90,7 @@ def _ssh_options_set_long(ssh_session, type_, value):
     value_long = c_long(value)
     result = c_ssh_options_set(c_void_p(ssh_session), 
                                c_int(type_), 
-                               cast(POINTER(value_long), c_void_p))
+                               cast(byref(value_long), c_void_p))
 
     if result < 0:
         error = ssh_get_error(ssh_session)
@@ -373,6 +372,9 @@ def ssh_threads_set_callbacks(cb):
     if result != SSH_OK:
         raise SshError("Could not set callbacks.")
 
+def _ssh_set_blocking(ssh_session, blocking):
+    c_ssh_set_blocking(c_void_p(ssh_session), c_int(blocking))
+
 
 class SshSystem(object):
     def __enter__(self):
@@ -390,7 +392,7 @@ class SshSystem(object):
         _ssh_finalize
 
 class SshSession(object):
-    def __init__(self, **options):#blocking=True,
+    def __init__(self, **options):
         self.__options = options
 
         self.__ssh_session_ptr = _ssh_new()
@@ -399,7 +401,11 @@ class SshSession(object):
 
         self.__log.debug("Created session.")
 
-#        self.set_blocking(blocking)
+
+        if 'blocking' in options:
+            self.set_blocking(options['blocking'])
+            # SSH_OPTIONS doesn't contain blocking and will crash if it finds it
+            del self.__options['blocking']
 
     def __enter__(self):
         return self.open()
@@ -483,15 +489,16 @@ class SshSession(object):
             buffer_ = bytearray()
             while 1:
                 bytes = sc.read(block_size)
-                buffer_.extend(bytes)
+                yield bytes
                 
                 if len(bytes) < block_size:
                     break
 
-            return buffer_
-
     def is_blocking(self):
         return _ssh_is_blocking(self.__ssh_session_ptr)
+
+    def set_blocking(self, blocking=True):
+        _ssh_set_blocking(self.__ssh_session_ptr, blocking)
 
     def get_error_code(self):
         return ssh_get_error_code(self.__ssh_session_ptr)

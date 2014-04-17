@@ -1,5 +1,8 @@
-from ctypes import *
+from ctypes import cdll
+from ctypes.util import find_library
 
-LIBSSH_FILE_PATH = "libssh.so"
-libssh = cdll.LoadLibrary(LIBSSH_FILE_PATH)
+_LIBSSH_FILEPATH = find_library('libssh')
+if _LIBSSH_FILEPATH is None:
+    _LIBSSH_FILEPATH = 'libssh.so'
 
+libssh = cdll.LoadLibrary(_LIBSSH_FILEPATH)

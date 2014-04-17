@@ -4,32 +4,47 @@ from setuptools import setup, find_packages
 from setuptools.command.install import install
 
 from ctypes import cdll
+from ctypes.util import find_library
 
-version = '0.11.1'
+#import versioneer
+
+#versioneer.VCS = 'git'
+#versioneer.versionfile_source = 'pysecure/_version.py'
+#versioneer.versionfile_build = 'pysecure/_version.py'
+#versioneer.tag_prefix = ''
+#versioneer.parentdir_prefix = 'pysecure-'
 
 def pre_install():
     print("Verifying that libssh.so is accessible.")
 
-    try:
-        cdll.LoadLibrary('libssh.so')
-    except OSError:
-        print("libssh.so can not be loaded.")
-        raise
+    _LIBSSH_FILEPATH = find_library('libssh')
+    if _LIBSSH_FILEPATH is None:
+        _LIBSSH_FILEPATH = 'libssh.so'
 
-def post_install():
-    pass
+    try:
+        cdll.LoadLibrary(_LIBSSH_FILEPATH)
+    except OSError:
+        print("libssh can not be loaded.")
+        raise
 
 class custom_install(install):
     def run(self):
         pre_install()
         install.run(self)
-        post_install()
+
+#cmdclass = versioneer.get_cmdclass()
+cmdclass = {}
+
+cmdclass['install'] = custom_install
+
+long_description = "A complete Python SSH/SFTP library based on libssh. This "\
+                   "libraries offers [nearly] complete functionality, "\
+                   "including elliptic cryptography support."
 
 setup(name='pysecure',
-      version=version,
+      version='0.11.7',#versioneer.get_version(),
       description="A complete Python SSH/SFTP library based on libssh.",
-      long_description="""\
-A complete Python SSH/SFTP library based on libssh. This libraries offers [nearly] complete functionality, including elliptic cryptography support.""",
+      long_description=long_description,
       classifiers=['Development Status :: 3 - Alpha', 
                    'Intended Audience :: Developers',
                    'License :: OSI Approved :: GNU General Public License v2 (GPLv2)',
@@ -41,7 +56,7 @@ A complete Python SSH/SFTP library based on libssh. This libraries offers [nearl
                    'Topic :: System :: System Shells',
                    'Topic :: Terminals',
                   ],
-      keywords='ssh sftp tcp',
+      keywords='ssh sftp',
       author='Dustin Oprea',
       author_email='myselfasunder@gmail.com',
       url='https://github.com/dsoprea/PySecure',
@@ -50,11 +65,7 @@ A complete Python SSH/SFTP library based on libssh. This libraries offers [nearl
       include_package_data=True,
       zip_safe=False,
       install_requires=[],
-      entry_points="""
-      # -*- Entry points: -*-
-      """,
       scripts=[],
-      cmdclass={'install': custom_install
-               },
-      ),
+      cmdclass=cmdclass,
+),
 
