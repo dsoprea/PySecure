@@ -476,7 +476,7 @@ class SshSession(object):
     def execute(self, cmd, block_size=DEFAULT_EXECUTE_READ_BLOCK_SIZE):
         """Execute a remote command. This functionality does not support more 
         than one command to be executed on the same channel, so we create a 
-        dedicated channel as the session level than allowing direct access at
+        dedicated channel at the session level than allowing direct access at
         the channel level.
         """
     
