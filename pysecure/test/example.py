@@ -3,8 +3,11 @@ from unittest import TestCase
 from pysecure.sftp_mirror import SftpMirror
 from pysecure.test.test_base import connect_sftp_test, connect_ssh_test
 
+
 class ExampleTest(TestCase):
     def __sftp_cb(self, ssh, sftp):
+        print("SFTP")
+
         mirror = SftpMirror(sftp)
 
     #    mirror.mirror(mirror.mirror_to_local_no_recursion, 
@@ -19,4 +22,3 @@ class ExampleTest(TestCase):
 
     def test_example(self):
         connect_sftp_test(self.__sftp_cb)
-

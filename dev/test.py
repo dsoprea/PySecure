@@ -3,12 +3,28 @@
 import sys
 sys.path.insert(0, '..')
 
+import logging
+
+def _configure_logging():
+    _FMT = '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+    _FORMATTER = logging.Formatter(_FMT)
+
+    logger = logging.getLogger()
+    logger.setLevel(logging.DEBUG)
+
+    ch = logging.StreamHandler()
+    ch.setFormatter(_FORMATTER)
+
+    logger.addHandler(ch)
+
+_configure_logging()
+
 from pysecure.adapters.sftpa import SftpFile
 
 from pysecure.easy import connect_sftp_with_cb, get_key_auth_cb
 
 user = 'dustin'
-host = 'dustinbookend'
+host = 'localhost'
 key_filepath = '/Users/dustin/.ssh/id_dsa'
 
 auth_cb = get_key_auth_cb(key_filepath)
